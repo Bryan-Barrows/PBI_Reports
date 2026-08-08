@@ -101,6 +101,7 @@ nav.site-nav a.active {
   color: var(--text);
   background: var(--bg);
   border-color: var(--border);
+  border-bottom: 3px solid var(--gold);
 }
 
 main {
@@ -112,6 +113,7 @@ main {
 .card {
   background: var(--card);
   border: 1px solid var(--border);
+  border-top: 3px solid var(--gold);
   border-radius: var(--radius);
   padding: 1.25rem;
   margin-bottom: 1.5rem;
@@ -120,6 +122,18 @@ main {
 .card h2 {
   margin-top: 0;
   font-size: 1.15rem;
+}
+
+.card h2::before,
+.banner-hall h2::before {
+  content: "";
+  display: inline-block;
+  width: 4px;
+  height: 1em;
+  background: var(--gold);
+  margin-right: 0.5rem;
+  vertical-align: -0.15em;
+  border-radius: 2px;
 }
 
 .stat-row {
@@ -133,6 +147,7 @@ main {
   flex: 1 1 160px;
   background: var(--card);
   border: 1px solid var(--border);
+  border-top: 3px solid var(--gold);
   border-radius: var(--radius);
   padding: 1rem;
   text-align: center;
@@ -170,7 +185,7 @@ thead th {
   text-transform: uppercase;
   letter-spacing: 0.04em;
   padding: 0.5rem 0.6rem;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 2px solid var(--gold);
   white-space: nowrap;
 }
 
@@ -217,7 +232,8 @@ tbody tr:hover {
 footer.site-footer {
   max-width: var(--max-width);
   margin: 0 auto;
-  padding: 1rem 1rem 2rem;
+  padding: 1.5rem 1rem 2rem;
+  border-top: 3px solid var(--gold);
   color: var(--text-muted);
   font-size: 0.8rem;
   text-align: center;
@@ -276,6 +292,7 @@ footer.site-footer {
 .manager-card {
   background: var(--bg-elevated);
   border: 1px solid var(--border);
+  border-top: 3px solid var(--gold);
   border-radius: var(--radius);
   padding: 0.85rem 1rem;
 }
@@ -298,6 +315,7 @@ footer.site-footer {
 .record-tile {
   background: var(--bg-elevated);
   border: 1px solid var(--border);
+  border-top: 3px solid var(--gold);
   border-radius: var(--radius);
   padding: 1rem 1.1rem;
 }
