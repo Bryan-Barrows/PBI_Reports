@@ -3,7 +3,7 @@
   "platform": "sleeper",
   "currentLeagueId": "1378040940861607936",
   "isSampleData": true,
-  "lastUpdated": "2026-08-08T14:06:29.104Z",
+  "lastUpdated": "2026-08-08T14:12:14.011Z",
   "seasons": [
     {
       "year": 2026,
@@ -21544,6 +21544,14 @@
     }
   ],
   "constitutionText": "PLACEHOLDER — this is sample text so you can see how the Constitution page\nlooks. Replace this with your real league's rules once you upload them.\n\n1. LEAGUE FORMAT\n   12 teams, head-to-head, PPR scoring. 13-week regular season followed by a\n   3-week playoff bracket among the top 6 finishers.\n\n2. DRAFT\n   Snake draft order is randomized each year. Draft date/time set by\n   commissioner vote.\n\n3. SCORING\n   Standard PPR. See the auto-generated League Settings box on this page for\n   the exact scoring/roster rules currently on file (pulled automatically\n   from Sleeper).\n\n4. PLAYOFFS\n   Top 6 teams make the playoffs. Seeds 1-2 get a first-round bye.\n\n5. PAYOUTS\n   TBD — replace with your league's actual payout structure.\n\n6. PENALTIES / LAST PLACE\n   TBD — replace with your league's actual last-place punishment tradition.\n",
+  "constitutionUpdates": {
+    "ruleChanges": [
+      "PLACEHOLDER — sample rule change: Playoff field expands from 6 to 8 teams starting next season."
+    ],
+    "discussionItems": [
+      "PLACEHOLDER — sample discussion item: Vote on switching from Half PPR to Full PPR scoring."
+    ]
+  },
   "logoPath": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+CiAgPGRlZnM+PGNsaXBQYXRoIGlkPSJjIj48Y2lyY2xlIGN4PSIzMiIgY3k9IjMyIiByPSIzMCIvPjwvY2xpcFBhdGg+PC9kZWZzPgogIDxjaXJjbGUgY3g9IjMyIiBjeT0iMzIiIHI9IjMxIiBmaWxsPSIjZjVmN2ZiIi8+CiAgPGcgY2xpcC1wYXRoPSJ1cmwoI2MpIj4KICAgIDxyZWN0IHdpZHRoPSI2NCIgaGVpZ2h0PSI2NCIgZmlsbD0iI2Y1ZjdmYiIvPgogICAgPHJlY3QgeT0iOCIgd2lkdGg9IjY0IiBoZWlnaHQ9IjYiIGZpbGw9IiNlZjQ0NDQiLz4KICAgIDxyZWN0IHk9IjIwIiB3aWR0aD0iNjQiIGhlaWdodD0iNiIgZmlsbD0iI2VmNDQ0NCIvPgogICAgPHJlY3QgeT0iMzIiIHdpZHRoPSI2NCIgaGVpZ2h0PSI2IiBmaWxsPSIjZWY0NDQ0Ii8+CiAgICA8cmVjdCB5PSI0NCIgd2lkdGg9IjY0IiBoZWlnaHQ9IjYiIGZpbGw9IiNlZjQ0NDQiLz4KICAgIDxyZWN0IHk9IjU2IiB3aWR0aD0iNjQiIGhlaWdodD0iNiIgZmlsbD0iI2VmNDQ0NCIvPgogICAgPHJlY3Qgd2lkdGg9IjMwIiBoZWlnaHQ9IjMwIiBmaWxsPSIjMWQ0ZWQ4Ii8+CiAgICA8dGV4dCB4PSIxNSIgeT0iMjEiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxOCIgZm9udC13ZWlnaHQ9IjkwMCIgZmlsbD0iI2Y1ZjdmYiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+VzwvdGV4dD4KICA8L2c+CiAgPGNpcmNsZSBjeD0iMzIiIGN5PSIzMiIgcj0iMzAuNSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMWQ0ZWQ4IiBzdHJva2Utd2lkdGg9IjEuNSIvPgo8L3N2Zz4=",
   "weeklyAwards": {
     "year": 2025,

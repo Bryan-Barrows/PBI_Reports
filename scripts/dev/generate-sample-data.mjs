@@ -82,6 +82,15 @@ looks. Replace this with your real league's rules once you upload them.
    TBD — replace with your league's actual last-place punishment tradition.
 `;
 
+const SAMPLE_CONSTITUTION_UPDATES = {
+  ruleChanges: [
+    "PLACEHOLDER — sample rule change: Playoff field expands from 6 to 8 teams starting next season.",
+  ],
+  discussionItems: [
+    "PLACEHOLDER — sample discussion item: Vote on switching from Half PPR to Full PPR scoring.",
+  ],
+};
+
 const START_YEAR = 2012;
 const END_YEAR = 2025;
 const REGULAR_WEEKS = 13;
@@ -336,6 +345,7 @@ async function main() {
     lastUpdated: new Date().toISOString(),
     seasons,
     constitutionText: existing.constitutionText || SAMPLE_CONSTITUTION_TEXT,
+    constitutionUpdates: existing.constitutionUpdates || SAMPLE_CONSTITUTION_UPDATES,
     logoPath: existing.logoPath && !existing.isSampleData ? existing.logoPath : SAMPLE_LOGO_DATA_URI,
     weeklyAwards,
     draftCentral,

@@ -205,6 +205,26 @@ script never touches it, so it survives every auto-update):
 `ownerId` should match the `personId` you used in `data/manager-map.json` so
 the keeper links to the right manager's profile.
 
+## Proposed rule changes / discussion items
+
+The Constitution page also has a manually-maintained "Proposed Changes for
+Next Season" section — for rule changes already decided, and separately for
+open items to discuss/vote on. Edit `constitutionUpdates` in
+`data/league-data.json` (preserved across every auto-fetch, same as
+`constitutionText` and `draftCentral.keepers`):
+
+```json
+{
+  "constitutionUpdates": {
+    "ruleChanges": ["Playoff field expands from 6 to 8 teams starting next season."],
+    "discussionItems": ["Vote on switching from Half PPR to Full PPR scoring."]
+  }
+}
+```
+
+Each list is just plain strings — add, remove, or reword freely. Leave a list
+empty (`[]`) or omit `constitutionUpdates` entirely if there's nothing to note.
+
 ## Customizing
 
 - League name: edit `leagueName` in `data/league-data.json` (persists across auto-fetches).

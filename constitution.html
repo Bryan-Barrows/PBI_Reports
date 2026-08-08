@@ -71,10 +71,42 @@
               ]),
         ])
       );
+
+      content.appendChild(buildProposedChangesCard(data.constitutionUpdates));
     } catch (err) {
       content.innerHTML = "";
       content.appendChild(emptyState(`Couldn't load league data: ${err.message}`));
     }
+  }
+
+  function buildProposedChangesCard(updates) {
+    const ruleChanges = updates?.ruleChanges || [];
+    const discussionItems = updates?.discussionItems || [];
+
+    const body = [];
+    if (ruleChanges.length === 0 && discussionItems.length === 0) {
+      body.push(
+        emptyState([
+          "Nothing noted yet. Rule changes decided for next season, or open items to discuss/vote on, ",
+          "can be added by hand to ",
+          el("code", {}, "constitutionUpdates"),
+          " in ",
+          el("code", {}, "data/league-data.json"),
+          ".",
+        ])
+      );
+    } else {
+      if (ruleChanges.length > 0) {
+        body.push(el("div", { class: "notes-subheading" }, "Rule Changes for Next Season"));
+        body.push(el("ul", { class: "notes-list" }, ruleChanges.map((item) => el("li", {}, item))));
+      }
+      if (discussionItems.length > 0) {
+        body.push(el("div", { class: "notes-subheading" }, "To Discuss / Vote On"));
+        body.push(el("ul", { class: "notes-list" }, discussionItems.map((item) => el("li", {}, item))));
+      }
+    }
+
+    return el("div", { class: "card" }, [el("h2", {}, "📝 Proposed Changes for Next Season"), ...body]);
   }
 
   function buildSettingsList(settings) {

@@ -456,6 +456,7 @@ async function main() {
     lastUpdated: new Date().toISOString(),
     seasons: allSeasons,
     constitutionText: existing.constitutionText || null,
+    constitutionUpdates: existing.constitutionUpdates || null,
     logoPath: logoPath || existing.logoPath || null,
     weeklyAwards: weeklyAwards || existing.weeklyAwards || null,
     draftCentral,

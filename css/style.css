@@ -359,6 +359,33 @@ footer.site-footer {
   line-height: 1.7;
 }
 
+.notes-list {
+  list-style: disc;
+  padding-left: 1.25rem;
+  margin: 0;
+  line-height: 1.6;
+}
+
+.notes-list li {
+  margin-bottom: 0.5rem;
+}
+
+.notes-list li:last-child {
+  margin-bottom: 0;
+}
+
+.notes-subheading {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 1.1rem 0 0.5rem;
+}
+
+.notes-subheading:first-child {
+  margin-top: 0;
+}
+
 .settings-list {
   list-style: none;
   padding: 0;
