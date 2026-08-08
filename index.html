@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Whippany Fantasy Football League</title>
+<meta name="description" content="Current standings, history, and records for the Whippany Fantasy Football League (WFFL)." />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <h1 class="site-title"><span class="ball">🏈</span><span id="league-name">Whippany Fantasy Football League</span></h1>
+    <p class="site-subtitle">Current standings, league history, and all-time records</p>
+    <nav class="site-nav">
+      <a href="index.html">Current Standings</a>
+      <a href="history.html">League History</a>
+      <a href="records.html">All-Time Records</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div id="content">
+    <div class="empty-state">Loading standings…</div>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <p id="last-updated"></p>
+</footer>
+
+<script src="js/data.js"></script>
+<script>
+  async function render() {
+    const content = document.getElementById("content");
+    try {
+      const data = await loadLeagueData();
+      document.getElementById("league-name").textContent = data.leagueName;
+      setLastUpdated(data);
+
+      if (!data.seasons || data.seasons.length === 0) {
+        content.innerHTML = "";
+        content.appendChild(
+          emptyState([
+            "No league data yet. Once the scheduled GitHub Action runs (or you run ",
+            el("code", {}, "node scripts/fetch-sleeper-data.mjs"),
+            " yourself), current standings will show up here.",
+          ])
+        );
+        return;
+      }
+
+      const current = data.seasons[0]; // seasons sorted newest-first
+
+      const statRow = el("div", { class: "stat-row" }, [
+        statTile(current.year, "Season"),
+        statTile(current.status?.replace("_", " ") || "unknown", "Status"),
+        statTile(current.champion ? current.champion.teamName : "TBD", "Defending goal"),
+      ]);
+
+      const table = buildStandingsTable(current.standings);
+
+      content.innerHTML = "";
+      content.appendChild(statRow);
+      content.appendChild(
+        el("div", { class: "card" }, [
+          el("h2", {}, `${current.year} Standings`),
+          el("div", { class: "table-scroll" }, table),
+        ])
+      );
+    } catch (err) {
+      content.innerHTML = "";
+      content.appendChild(emptyState(`Couldn't load league data: ${err.message}`));
+    }
+  }
+
+  function statTile(value, label) {
+    return el("div", { class: "stat-tile" }, [
+      el("div", { class: "value" }, String(value)),
+      el("div", { class: "label" }, label),
+    ]);
+  }
+
+  function buildStandingsTable(standings) {
+    const table = el("table");
+    table.appendChild(
+      el("thead", {}, [
+        el("tr", {}, [
+          el("th", {}, "#"),
+          el("th", {}, "Team"),
+          el("th", {}, "Manager"),
+          el("th", {}, "W"),
+          el("th", {}, "L"),
+          el("th", {}, "T"),
+          el("th", {}, "Win %"),
+          el("th", {}, "PF"),
+          el("th", {}, "PA"),
+        ]),
+      ])
+    );
+    const tbody = el("tbody");
+    (standings || []).forEach((row) => {
+      tbody.appendChild(
+        el("tr", {}, [
+          el("td", { class: row.rank === 1 ? "rank-1" : "" }, row.rank === 1 ? `🏆 ${row.rank}` : String(row.rank)),
+          el("td", {}, row.teamName),
+          el("td", {}, row.managerName),
+          el("td", {}, String(row.wins)),
+          el("td", {}, String(row.losses)),
+          el("td", {}, String(row.ties)),
+          el("td", {}, winPct(row.wins, row.losses, row.ties)),
+          el("td", {}, row.pointsFor.toFixed(2)),
+          el("td", {}, row.pointsAgainst.toFixed(2)),
+        ])
+      );
+    });
+    table.appendChild(tbody);
+    return table;
+  }
+
+  render();
+</script>
+</body>
+</html>
