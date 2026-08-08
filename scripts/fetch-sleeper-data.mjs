@@ -21,14 +21,16 @@
  * preserves any non-Sleeper-sourced season it finds already in the file.
  */
 
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, writeFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { computeAggregates } from "./lib/aggregate.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_PATH = path.join(__dirname, "..", "data", "league-data.json");
+const ASSETS_DIR = path.join(__dirname, "..", "assets");
 const API_BASE = "https://api.sleeper.app/v1";
+const AVATAR_CDN = "https://sleepercdn.com/avatars";
 const MAX_WEEKS_TO_CHECK = 18; // generous upper bound; Sleeper returns empty for weeks that never happened
 
 async function sleeperGet(pathSuffix) {
@@ -39,6 +41,28 @@ async function sleeperGet(pathSuffix) {
     throw new Error(`Sleeper API error ${res.status} for ${url}`);
   }
   return res.json();
+}
+
+// Downloads the league's Sleeper avatar (its "logo") into assets/ and returns
+// a site-relative path to reference it, or null if there's no avatar or the
+// download fails for any reason (never fatal — the site just falls back to
+// its default header icon).
+async function downloadLeagueLogo(avatarHash) {
+  if (!avatarHash) return null;
+  try {
+    const res = await fetch(`${AVATAR_CDN}/${avatarHash}`);
+    if (!res.ok) return null;
+    const contentType = res.headers.get("content-type") || "";
+    const ext = contentType.includes("png") ? "png" : contentType.includes("webp") ? "webp" : "jpg";
+    const filename = `league-logo.${ext}`;
+    const buffer = Buffer.from(await res.arrayBuffer());
+    await mkdir(ASSETS_DIR, { recursive: true });
+    await writeFile(path.join(ASSETS_DIR, filename), buffer);
+    return `assets/${filename}`;
+  } catch (err) {
+    console.warn(`  Failed to download league logo: ${err.message}`);
+    return null;
+  }
 }
 
 function teamNameFor(user) {
@@ -152,6 +176,7 @@ async function fetchSeason(leagueId) {
     leagueId,
     status: league.status, // 'pre_draft' | 'drafting' | 'in_season' | 'complete'
     name: league.name,
+    avatar: league.avatar || null,
     source: "sleeper",
     standings,
     champion,
@@ -217,6 +242,10 @@ async function main() {
   const allSeasons = [...seasons, ...keptManual].sort((a, b) => b.year - a.year);
   const allTime = computeAggregates(allSeasons);
 
+  // Use the most current Sleeper season's avatar as the site logo.
+  const currentSeason = seasons.find((s) => s.leagueId === startLeagueId);
+  const logoPath = await downloadLeagueLogo(currentSeason?.avatar);
+
   const output = {
     leagueName: existing.leagueName || "Fantasy Football League",
     platform: "sleeper",
@@ -225,6 +254,7 @@ async function main() {
     lastUpdated: new Date().toISOString(),
     seasons: allSeasons,
     constitutionText: existing.constitutionText || null,
+    logoPath: logoPath || existing.logoPath || null,
     allTime,
     notes: existing.notes || [],
   };

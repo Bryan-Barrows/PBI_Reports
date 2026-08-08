@@ -41,6 +41,7 @@
     try {
       const data = await loadLeagueData();
       document.getElementById("league-name").textContent = data.leagueName;
+      applyLogo(data);
       setLastUpdated(data);
 
       content.innerHTML = "";

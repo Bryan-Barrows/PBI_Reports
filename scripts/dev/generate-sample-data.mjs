@@ -36,6 +36,26 @@ const MANAGERS = [
   { ownerId: "m12", managerName: "Avery", teamName: "Two-Point Terrors" },
 ];
 
+// A tiny inline placeholder "W" emblem so the site header can be previewed
+// with a real logo image in place, before the actual Sleeper avatar is wired
+// up. Encoded as a data URI so no binary asset file is needed for this.
+const SAMPLE_LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs><clipPath id="c"><circle cx="32" cy="32" r="30"/></clipPath></defs>
+  <circle cx="32" cy="32" r="31" fill="#f5f7fb"/>
+  <g clip-path="url(#c)">
+    <rect width="64" height="64" fill="#f5f7fb"/>
+    <rect y="8" width="64" height="6" fill="#ef4444"/>
+    <rect y="20" width="64" height="6" fill="#ef4444"/>
+    <rect y="32" width="64" height="6" fill="#ef4444"/>
+    <rect y="44" width="64" height="6" fill="#ef4444"/>
+    <rect y="56" width="64" height="6" fill="#ef4444"/>
+    <rect width="30" height="30" fill="#1d4ed8"/>
+    <text x="15" y="21" font-family="Arial, sans-serif" font-size="18" font-weight="900" fill="#f5f7fb" text-anchor="middle">W</text>
+  </g>
+  <circle cx="32" cy="32" r="30.5" fill="none" stroke="#1d4ed8" stroke-width="1.5"/>
+</svg>`;
+const SAMPLE_LOGO_DATA_URI = `data:image/svg+xml;base64,${Buffer.from(SAMPLE_LOGO_SVG).toString("base64")}`;
+
 const SAMPLE_CONSTITUTION_TEXT = `PLACEHOLDER — this is sample text so you can see how the Constitution page
 looks. Replace this with your real league's rules once you upload them.
 
@@ -231,6 +251,7 @@ async function main() {
     lastUpdated: new Date().toISOString(),
     seasons,
     constitutionText: existing.constitutionText || SAMPLE_CONSTITUTION_TEXT,
+    logoPath: existing.logoPath && !existing.isSampleData ? existing.logoPath : SAMPLE_LOGO_DATA_URI,
     allTime,
     notes: [
       "This is fabricated SAMPLE data for previewing the site's design and features.",

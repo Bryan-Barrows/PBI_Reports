@@ -56,6 +56,19 @@ function setLastUpdated(data) {
 
 document.addEventListener("DOMContentLoaded", setActiveNav);
 
+function applyLogo(data) {
+  if (!data.logoPath) return;
+  const ball = document.querySelector(".site-title .ball");
+  if (!ball) return;
+  const img = document.createElement("img");
+  img.alt = "League logo";
+  img.className = "league-logo";
+  img.onerror = () => img.remove(); // fall back to the emoji if the file's missing/broken
+  img.onload = () => (ball.style.display = "none");
+  ball.insertAdjacentElement("afterend", img);
+  img.src = data.logoPath; // set src last so onload/onerror are already wired up
+}
+
 function sampleBanner(data) {
   if (!data.isSampleData) return null;
   return el("div", { class: "sample-banner" }, [

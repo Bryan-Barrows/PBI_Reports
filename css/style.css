@@ -1,13 +1,13 @@
 :root {
-  --bg: #0f1712;
-  --bg-elevated: #16211a;
-  --card: #1b291f;
-  --border: #2a3c2f;
-  --text: #eaf2ec;
-  --text-muted: #9fb3a6;
-  --accent: #4ade80;
-  --accent-dark: #16a34a;
-  --gold: #f5c542;
+  --bg: #0a0f1f;
+  --bg-elevated: #101a33;
+  --card: #16213e;
+  --border: #29406e;
+  --text: #f5f7fb;
+  --text-muted: #94a3c4;
+  --accent: #4d8dff;
+  --accent-dark: #1d4ed8;
+  --gold: #ef4444; /* repurposed for the red/white/blue theme: champion/rank-1 highlight color */
   --danger: #f87171;
   --radius: 10px;
   --max-width: 1000px;
@@ -40,9 +40,18 @@ a:hover {
 }
 
 header.site-header {
-  background: linear-gradient(135deg, #163a24 0%, #0f1712 100%);
-  border-bottom: 1px solid var(--border);
+  background: linear-gradient(135deg, #16265a 0%, #0a0f1f 100%);
+  border-bottom: 3px solid var(--gold);
   padding: 1.5rem 1rem 0;
+}
+
+.league-logo {
+  height: 2rem;
+  width: 2rem;
+  object-fit: contain;
+  border-radius: 6px;
+  margin-right: 0.4rem;
+  vertical-align: middle;
 }
 
 .header-inner {
@@ -217,7 +226,7 @@ footer.site-footer {
 .badge {
   display: inline-block;
   background: var(--accent-dark);
-  color: #04220f;
+  color: #ffffff;
   font-weight: 700;
   font-size: 0.72rem;
   padding: 0.1rem 0.5rem;
