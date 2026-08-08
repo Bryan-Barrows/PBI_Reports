@@ -14,9 +14,12 @@
     <h1 class="site-title"><span class="ball">🏈</span><span id="league-name">Whippany Fantasy Football League</span></h1>
     <p class="site-subtitle">Current standings, league history, and all-time records</p>
     <nav class="site-nav">
-      <a href="index.html">Current Standings</a>
-      <a href="history.html">League History</a>
-      <a href="records.html">All-Time Records</a>
+      <a href="index.html">Home</a>
+      <a href="stats.html">Stats</a>
+      <a href="records.html">Records</a>
+      <a href="headtohead.html">Head-to-Head</a>
+      <a href="history.html">History</a>
+      <a href="constitution.html">Constitution</a>
     </nav>
   </div>
 </header>
@@ -40,8 +43,11 @@
       document.getElementById("league-name").textContent = data.leagueName;
       setLastUpdated(data);
 
+      content.innerHTML = "";
+      const banner = sampleBanner(data);
+      if (banner) content.appendChild(banner);
+
       if (!data.seasons || data.seasons.length === 0) {
-        content.innerHTML = "";
         content.appendChild(
           emptyState([
             "No league data yet. Once the scheduled GitHub Action runs (or you run ",
@@ -57,19 +63,26 @@
       const statRow = el("div", { class: "stat-row" }, [
         statTile(current.year, "Season"),
         statTile(current.status?.replace("_", " ") || "unknown", "Status"),
-        statTile(current.champion ? current.champion.teamName : "TBD", "Defending goal"),
+        statTile(current.champion ? current.champion.teamName : "TBD", "Defending Champ"),
       ]);
 
-      const table = buildStandingsTable(current.standings);
-
-      content.innerHTML = "";
       content.appendChild(statRow);
       content.appendChild(
         el("div", { class: "card" }, [
           el("h2", {}, `${current.year} Standings`),
-          el("div", { class: "table-scroll" }, table),
+          el("div", { class: "table-scroll" }, buildStandingsTable(current.standings)),
         ])
       );
+
+      const champs = data.allTime?.standings || [];
+      if (champs.length > 0) {
+        content.appendChild(
+          el("div", { class: "card" }, [
+            el("h2", {}, "🏆 Championships by Owner"),
+            el("div", { class: "table-scroll" }, buildChampionshipCountsTable(champs)),
+          ])
+        );
+      }
     } catch (err) {
       content.innerHTML = "";
       content.appendChild(emptyState(`Couldn't load league data: ${err.message}`));
@@ -105,7 +118,7 @@
       tbody.appendChild(
         el("tr", {}, [
           el("td", { class: row.rank === 1 ? "rank-1" : "" }, row.rank === 1 ? `🏆 ${row.rank}` : String(row.rank)),
-          el("td", {}, row.teamName),
+          el("td", {}, managerLink(row.ownerId, row.teamName)),
           el("td", {}, row.managerName),
           el("td", {}, String(row.wins)),
           el("td", {}, String(row.losses)),
@@ -113,6 +126,26 @@
           el("td", {}, winPct(row.wins, row.losses, row.ties)),
           el("td", {}, row.pointsFor.toFixed(2)),
           el("td", {}, row.pointsAgainst.toFixed(2)),
+        ])
+      );
+    });
+    table.appendChild(tbody);
+    return table;
+  }
+
+  function buildChampionshipCountsTable(standings) {
+    const sorted = [...standings].sort((a, b) => b.championships - a.championships);
+    const table = el("table");
+    table.appendChild(
+      el("thead", {}, [el("tr", {}, [el("th", {}, "Manager"), el("th", {}, "Team"), el("th", {}, "Championships")])])
+    );
+    const tbody = el("tbody");
+    sorted.forEach((row) => {
+      tbody.appendChild(
+        el("tr", {}, [
+          el("td", {}, row.managerName),
+          el("td", {}, managerLink(row.ownerId, row.teamName)),
+          el("td", { class: row.championships > 0 ? "rank-1" : "" }, row.championships > 0 ? "🏆".repeat(row.championships) + ` (${row.championships})` : "—"),
         ])
       );
     });

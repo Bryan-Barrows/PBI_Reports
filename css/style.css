@@ -224,3 +224,133 @@ footer.site-footer {
   border-radius: 999px;
   margin-left: 0.4rem;
 }
+
+.sample-banner {
+  background: #3a2f0f;
+  border: 1px solid #7a5f16;
+  color: #f5d98a;
+  border-radius: var(--radius);
+  padding: 0.75rem 1rem;
+  margin-bottom: 1.5rem;
+  font-size: 0.9rem;
+}
+
+.sample-banner strong {
+  color: var(--gold);
+}
+
+.manager-picker {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+}
+
+.manager-picker select,
+.manager-picker input[type="search"] {
+  background: var(--bg-elevated);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.55rem 0.75rem;
+  font-size: 0.95rem;
+  min-width: 220px;
+}
+
+.manager-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.75rem;
+}
+
+.manager-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.85rem 1rem;
+}
+
+.manager-card .team {
+  font-weight: 700;
+}
+
+.manager-card .owner {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.record-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1rem;
+}
+
+.record-tile {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.1rem;
+}
+
+.record-tile .record-label {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.35rem;
+}
+
+.record-tile .record-value {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 0.2rem;
+}
+
+.record-tile .record-detail {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.h2h-table th,
+.h2h-table td {
+  text-align: center;
+}
+
+.h2h-table th:first-child,
+.h2h-table td:first-child {
+  text-align: left;
+}
+
+.h2h-diag {
+  color: var(--border);
+}
+
+.rules-content {
+  white-space: pre-wrap;
+  line-height: 1.7;
+}
+
+.settings-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.settings-list li {
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.settings-list li:last-child {
+  border-bottom: none;
+}
+
+.settings-list .k {
+  color: var(--text-muted);
+}

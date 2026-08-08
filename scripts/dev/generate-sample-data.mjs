@@ -1,0 +1,245 @@
+#!/usr/bin/env node
+/**
+ * generate-sample-data.mjs (DEV TOOL — not part of the production pipeline)
+ *
+ * Fabricates a realistic-looking multi-year league (2012–2025, plus an
+ * upcoming 2026 pre-draft season) with full game-by-game results, so every
+ * page of the site has something real to render while we wait on real
+ * Sleeper/Excel data. Writes over data/league-data.json and sets
+ * "isSampleData": true so the site shows a banner making that obvious.
+ *
+ * Deterministic (seeded RNG) so re-running produces the same output.
+ *
+ * Usage: node scripts/dev/generate-sample-data.mjs
+ */
+
+import { readFile, writeFile } from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { computeAggregates } from "../lib/aggregate.mjs";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const DATA_PATH = path.join(__dirname, "..", "..", "data", "league-data.json");
+
+const MANAGERS = [
+  { ownerId: "m1", managerName: "Alex", teamName: "Gridiron Gang" },
+  { ownerId: "m2", managerName: "Sam", teamName: "Turf Titans" },
+  { ownerId: "m3", managerName: "Jordan", teamName: "End Zone Elite" },
+  { ownerId: "m4", managerName: "Casey", teamName: "Blitz Brigade" },
+  { ownerId: "m5", managerName: "Morgan", teamName: "Red Zone Raiders" },
+  { ownerId: "m6", managerName: "Taylor", teamName: "Hail Mary Heroes" },
+  { ownerId: "m7", managerName: "Riley", teamName: "Pigskin Prophets" },
+  { ownerId: "m8", managerName: "Jamie", teamName: "Fumble Dynasty" },
+  { ownerId: "m9", managerName: "Drew", teamName: "Sack Attack" },
+  { ownerId: "m10", managerName: "Cameron", teamName: "Punt Return Kings" },
+  { ownerId: "m11", managerName: "Quinn", teamName: "Field Goal Fanatics" },
+  { ownerId: "m12", managerName: "Avery", teamName: "Two-Point Terrors" },
+];
+
+const SAMPLE_CONSTITUTION_TEXT = `PLACEHOLDER — this is sample text so you can see how the Constitution page
+looks. Replace this with your real league's rules once you upload them.
+
+1. LEAGUE FORMAT
+   12 teams, head-to-head, PPR scoring. 13-week regular season followed by a
+   3-week playoff bracket among the top 6 finishers.
+
+2. DRAFT
+   Snake draft order is randomized each year. Draft date/time set by
+   commissioner vote.
+
+3. SCORING
+   Standard PPR. See the auto-generated League Settings box on this page for
+   the exact scoring/roster rules currently on file (pulled automatically
+   from Sleeper).
+
+4. PLAYOFFS
+   Top 6 teams make the playoffs. Seeds 1-2 get a first-round bye.
+
+5. PAYOUTS
+   TBD — replace with your league's actual payout structure.
+
+6. PENALTIES / LAST PLACE
+   TBD — replace with your league's actual last-place punishment tradition.
+`;
+
+const START_YEAR = 2012;
+const END_YEAR = 2025;
+const REGULAR_WEEKS = 13;
+const PLAYOFF_WEEKS = 3;
+const PLAYOFF_WEEK_START = REGULAR_WEEKS + 1;
+
+// Seeded RNG (mulberry32) for reproducible sample data.
+function mulberry32(seed) {
+  let a = seed;
+  return function () {
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+const rng = mulberry32(42);
+
+// Each manager gets a persistent "skill factor" so some are perennial
+// contenders and others perennial cellar-dwellers — makes the all-time
+// records/standings feel like a real league instead of pure noise.
+const skillFactor = new Map(MANAGERS.map((m, i) => [m.ownerId, 0.85 + mulberry32(i + 1)() * 0.3]));
+
+function shuffled(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function scoreFor(ownerId) {
+  const base = 85 + rng() * 65; // 85-150
+  const skewed = base * skillFactor.get(ownerId);
+  return Number(skewed.toFixed(2));
+}
+
+function generateSeasonGames() {
+  const games = [];
+  const totalWeeks = REGULAR_WEEKS + PLAYOFF_WEEKS;
+  for (let week = 1; week <= totalWeeks; week++) {
+    const order = shuffled(MANAGERS.map((m) => m.ownerId));
+    for (let i = 0; i < order.length; i += 2) {
+      const aId = order[i];
+      const bId = order[i + 1];
+      const aTeam = MANAGERS.find((m) => m.ownerId === aId).teamName;
+      const bTeam = MANAGERS.find((m) => m.ownerId === bId).teamName;
+      games.push({
+        week,
+        isPlayoff: week >= PLAYOFF_WEEK_START,
+        teamA: { ownerId: aId, teamName: aTeam, score: scoreFor(aId) },
+        teamB: { ownerId: bId, teamName: bTeam, score: scoreFor(bId) },
+      });
+    }
+  }
+  return games;
+}
+
+function standingsFromGames(games) {
+  const byOwner = new Map(
+    MANAGERS.map((m) => [m.ownerId, { ownerId: m.ownerId, managerName: m.managerName, teamName: m.teamName, wins: 0, losses: 0, ties: 0, pointsFor: 0, pointsAgainst: 0 }])
+  );
+  for (const g of games) {
+    const a = byOwner.get(g.teamA.ownerId);
+    const b = byOwner.get(g.teamB.ownerId);
+    a.pointsFor += g.teamA.score;
+    a.pointsAgainst += g.teamB.score;
+    b.pointsFor += g.teamB.score;
+    b.pointsAgainst += g.teamA.score;
+    if (g.teamA.score > g.teamB.score) {
+      a.wins++;
+      b.losses++;
+    } else if (g.teamB.score > g.teamA.score) {
+      b.wins++;
+      a.losses++;
+    } else {
+      a.ties++;
+      b.ties++;
+    }
+  }
+  return Array.from(byOwner.values())
+    .map((r) => ({ ...r, pointsFor: Number(r.pointsFor.toFixed(2)), pointsAgainst: Number(r.pointsAgainst.toFixed(2)) }))
+    .sort((x, y) => y.wins - x.wins || y.pointsFor - x.pointsFor)
+    .map((row, i) => ({ ...row, rank: i + 1 }));
+}
+
+function generateSeason(year) {
+  const games = generateSeasonGames();
+  const standings = standingsFromGames(games);
+  const champion = { ownerId: standings[0].ownerId, managerName: standings[0].managerName, teamName: standings[0].teamName };
+  const runnerUp = { ownerId: standings[1].ownerId, managerName: standings[1].managerName, teamName: standings[1].teamName };
+
+  return {
+    year,
+    leagueId: null,
+    status: "complete",
+    name: `WFFL ${year}`,
+    source: "sample",
+    standings,
+    champion,
+    runnerUp,
+    games,
+    settings: {
+      numTeams: MANAGERS.length,
+      playoffWeekStart: PLAYOFF_WEEK_START,
+      playoffTeams: 6,
+      rosterPositions: ["QB", "RB", "RB", "WR", "WR", "TE", "FLEX", "DEF", "K", "BN", "BN", "BN", "BN", "BN", "BN"],
+      scoringSettings: { pass_td: 4, rec: 0.5, rush_td: 6, rec_td: 6 },
+    },
+    previousLeagueId: null,
+  };
+}
+
+function generatePreDraftSeason(year) {
+  const standings = MANAGERS.map((m, i) => ({
+    ownerId: m.ownerId,
+    managerName: m.managerName,
+    teamName: m.teamName,
+    wins: 0,
+    losses: 0,
+    ties: 0,
+    pointsFor: 0,
+    pointsAgainst: 0,
+    rank: i + 1,
+  }));
+  return {
+    year,
+    leagueId: null,
+    status: "pre_draft",
+    name: `WFFL ${year}`,
+    source: "sample",
+    standings,
+    champion: null,
+    runnerUp: null,
+    games: [],
+    settings: {
+      numTeams: MANAGERS.length,
+      playoffWeekStart: PLAYOFF_WEEK_START,
+      playoffTeams: 6,
+      rosterPositions: ["QB", "RB", "RB", "WR", "WR", "TE", "FLEX", "DEF", "K", "BN", "BN", "BN", "BN", "BN", "BN"],
+      scoringSettings: { pass_td: 4, rec: 0.5, rush_td: 6, rec_td: 6 },
+    },
+    previousLeagueId: null,
+  };
+}
+
+async function main() {
+  const existingRaw = await readFile(DATA_PATH, "utf-8").catch(() => null);
+  const existing = existingRaw ? JSON.parse(existingRaw) : {};
+
+  const seasons = [];
+  for (let year = END_YEAR; year >= START_YEAR; year--) {
+    seasons.push(generateSeason(year));
+  }
+  seasons.unshift(generatePreDraftSeason(2026));
+
+  const allTime = computeAggregates(seasons);
+
+  const output = {
+    leagueName: existing.leagueName || "Whippany Fantasy Football League (WFFL)",
+    platform: existing.platform || "sleeper",
+    currentLeagueId: existing.currentLeagueId || null,
+    isSampleData: true,
+    lastUpdated: new Date().toISOString(),
+    seasons,
+    constitutionText: existing.constitutionText || SAMPLE_CONSTITUTION_TEXT,
+    allTime,
+    notes: [
+      "This is fabricated SAMPLE data for previewing the site's design and features.",
+      "It will be replaced once real Sleeper data and the 2012-2025 Excel import are in place.",
+    ],
+  };
+
+  await writeFile(DATA_PATH, JSON.stringify(output, null, 2) + "\n", "utf-8");
+  console.log(`Wrote ${seasons.length} sample seasons to ${DATA_PATH}`);
+}
+
+main();

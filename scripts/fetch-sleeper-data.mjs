@@ -2,8 +2,9 @@
 /**
  * fetch-sleeper-data.mjs
  *
- * Pulls league history, standings, and champions from the Sleeper public API
- * and writes the result to data/league-data.json for the static site to read.
+ * Pulls league history, standings, champions, and week-by-week matchups from
+ * the Sleeper public API and writes the result to data/league-data.json for
+ * the static site to read.
  *
  * Sleeper's API is public and requires no auth key. Docs: https://docs.sleeper.com/
  *
@@ -12,15 +13,23 @@
  *
  * If no league ID is passed, it reads currentLeagueId out of the existing
  * data/league-data.json so re-runs don't require re-typing it.
+ *
+ * Note: Sleeper only has data for seasons your league actually played on
+ * Sleeper. Earlier seasons on another platform won't show up here — add
+ * those by hand to data/league-data.json with "source": "manual" (or import
+ * them via a script like scripts/import-excel-history.mjs); this script
+ * preserves any non-Sleeper-sourced season it finds already in the file.
  */
 
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { computeAggregates } from "./lib/aggregate.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_PATH = path.join(__dirname, "..", "data", "league-data.json");
 const API_BASE = "https://api.sleeper.app/v1";
+const MAX_WEEKS_TO_CHECK = 18; // generous upper bound; Sleeper returns empty for weeks that never happened
 
 async function sleeperGet(pathSuffix) {
   const url = `${API_BASE}${pathSuffix}`;
@@ -40,6 +49,41 @@ function teamNameFor(user) {
   );
 }
 
+async function fetchGames(leagueId, rosterMeta, playoffWeekStart) {
+  const games = [];
+  for (let week = 1; week <= MAX_WEEKS_TO_CHECK; week++) {
+    let matchups;
+    try {
+      matchups = await sleeperGet(`/league/${leagueId}/matchups/${week}`);
+    } catch (err) {
+      console.warn(`  Failed to fetch matchups for week ${week}: ${err.message}`);
+      continue;
+    }
+    if (!matchups || matchups.length === 0) continue;
+
+    const byMatchupId = new Map();
+    for (const m of matchups) {
+      if (m.matchup_id == null) continue; // no opponent assigned (bye)
+      if (!byMatchupId.has(m.matchup_id)) byMatchupId.set(m.matchup_id, []);
+      byMatchupId.get(m.matchup_id).push(m);
+    }
+
+    for (const pair of byMatchupId.values()) {
+      if (pair.length !== 2) continue; // skip byes / malformed groups
+      const [m1, m2] = pair;
+      const meta1 = rosterMeta.get(m1.roster_id);
+      const meta2 = rosterMeta.get(m2.roster_id);
+      games.push({
+        week,
+        isPlayoff: playoffWeekStart ? week >= playoffWeekStart : false,
+        teamA: { ownerId: meta1?.ownerId ?? null, teamName: meta1?.teamName ?? "Unknown", score: Number((m1.points || 0).toFixed(2)) },
+        teamB: { ownerId: meta2?.ownerId ?? null, teamName: meta2?.teamName ?? "Unknown", score: Number((m2.points || 0).toFixed(2)) },
+      });
+    }
+  }
+  return games;
+}
+
 async function fetchSeason(leagueId) {
   const league = await sleeperGet(`/league/${leagueId}`);
   if (!league) return null;
@@ -51,6 +95,13 @@ async function fetchSeason(leagueId) {
   ]);
 
   const usersById = new Map((users || []).map((u) => [u.user_id, u]));
+
+  const rosterMeta = new Map(
+    (rosters || []).map((r) => [
+      r.roster_id,
+      { ownerId: r.owner_id, teamName: teamNameFor(usersById.get(r.owner_id)) },
+    ])
+  );
 
   const standings = (rosters || [])
     .map((r) => {
@@ -93,6 +144,9 @@ async function fetchSeason(leagueId) {
     }
   }
 
+  const playoffWeekStart = league.settings?.playoff_week_start || null;
+  const games = await fetchGames(leagueId, rosterMeta, playoffWeekStart);
+
   return {
     year: Number(league.season),
     leagueId,
@@ -102,6 +156,14 @@ async function fetchSeason(leagueId) {
     standings,
     champion,
     runnerUp,
+    games,
+    settings: {
+      numTeams: league.settings?.num_teams ?? standings.length,
+      playoffWeekStart,
+      playoffTeams: league.settings?.playoff_teams ?? null,
+      rosterPositions: league.roster_positions ?? null,
+      scoringSettings: league.scoring_settings ?? null,
+    },
     previousLeagueId: league.previous_league_id || null,
   };
 }
@@ -139,75 +201,31 @@ async function main() {
       console.warn(`  League ${cursor} not found. Stopping walk here.`);
       break;
     }
+    console.log(`  Season ${season.year}: ${season.standings.length} teams, ${season.games.length} games found.`);
     seasons.push(season);
     cursor = season.previousLeagueId;
   }
 
   seasons.sort((a, b) => b.year - a.year);
 
-  // Preserve any manually-added historical seasons (e.g. pre-Sleeper years)
-  // that aren't sourced from Sleeper, keyed by year.
-  const manualSeasons = (existing.seasons || []).filter((s) => s.source === "manual");
+  // Preserve any manually/Excel-imported historical seasons that aren't
+  // sourced from Sleeper, keyed by year.
+  const manualSeasons = (existing.seasons || []).filter((s) => s.source !== "sleeper");
   const sleeperYears = new Set(seasons.map((s) => s.year));
   const keptManual = manualSeasons.filter((s) => !sleeperYears.has(s.year));
 
   const allSeasons = [...seasons, ...keptManual].sort((a, b) => b.year - a.year);
-
-  // Aggregate all-time standings & championship counts by ownerId.
-  const byOwner = new Map();
-  for (const season of allSeasons) {
-    for (const row of season.standings || []) {
-      if (!row.ownerId) continue;
-      const agg =
-        byOwner.get(row.ownerId) ||
-        {
-          ownerId: row.ownerId,
-          managerName: row.managerName,
-          teamName: row.teamName,
-          seasonsPlayed: 0,
-          wins: 0,
-          losses: 0,
-          ties: 0,
-          pointsFor: 0,
-          pointsAgainst: 0,
-          championships: 0,
-        };
-      agg.seasonsPlayed += 1;
-      agg.wins += row.wins;
-      agg.losses += row.losses;
-      agg.ties += row.ties;
-      agg.pointsFor += row.pointsFor;
-      agg.pointsAgainst += row.pointsAgainst;
-      // Keep the most recent team name as the display name.
-      agg.teamName = row.teamName;
-      agg.managerName = row.managerName;
-      byOwner.set(row.ownerId, agg);
-    }
-    if (season.champion?.ownerId) {
-      const agg = byOwner.get(season.champion.ownerId);
-      if (agg) agg.championships += 1;
-    }
-  }
-
-  const allTimeStandings = Array.from(byOwner.values())
-    .map((a) => ({ ...a, pointsFor: Number(a.pointsFor.toFixed(2)), pointsAgainst: Number(a.pointsAgainst.toFixed(2)) }))
-    .sort((a, b) => b.wins - a.wins || b.championships - a.championships);
-
-  const championships = allTimeStandings
-    .filter((a) => a.championships > 0)
-    .map((a) => ({ managerName: a.managerName, teamName: a.teamName, count: a.championships }))
-    .sort((a, b) => b.count - a.count);
+  const allTime = computeAggregates(allSeasons);
 
   const output = {
     leagueName: existing.leagueName || "Fantasy Football League",
     platform: "sleeper",
     currentLeagueId: startLeagueId,
+    isSampleData: false,
     lastUpdated: new Date().toISOString(),
     seasons: allSeasons,
-    allTime: {
-      standings: allTimeStandings,
-      championships,
-    },
+    constitutionText: existing.constitutionText || null,
+    allTime,
     notes: existing.notes || [],
   };
 

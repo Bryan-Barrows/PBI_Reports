@@ -55,3 +55,62 @@ function setLastUpdated(data) {
 }
 
 document.addEventListener("DOMContentLoaded", setActiveNav);
+
+function sampleBanner(data) {
+  if (!data.isSampleData) return null;
+  return el("div", { class: "sample-banner" }, [
+    "⚠️ This site is currently showing ",
+    el("strong", {}, "sample placeholder data"),
+    " while real league history is being imported — nothing here reflects your actual league yet.",
+  ]);
+}
+
+function managerLink(ownerId, label) {
+  if (!ownerId) return document.createTextNode(label);
+  return el("a", { href: `manager.html?id=${encodeURIComponent(ownerId)}` }, label);
+}
+
+function getParam(name) {
+  return new URLSearchParams(location.search).get(name);
+}
+
+function careerStanding(data, ownerId) {
+  return (data.allTime?.standings || []).find((s) => s.ownerId === ownerId) || null;
+}
+
+// All seasons a given ownerId appears in, oldest first, with that owner's row attached.
+function seasonRowsFor(data, ownerId) {
+  return (data.seasons || [])
+    .filter((s) => s.status !== "pre_draft")
+    .slice()
+    .sort((a, b) => a.year - b.year)
+    .map((season) => {
+      const row = (season.standings || []).find((r) => r.ownerId === ownerId);
+      if (!row) return null;
+      return {
+        year: season.year,
+        row,
+        isChampion: season.champion?.ownerId === ownerId,
+        isRunnerUp: season.runnerUp?.ownerId === ownerId,
+      };
+    })
+    .filter(Boolean);
+}
+
+// Head-to-head entries involving ownerId, each annotated with the opponent's id.
+function headToHeadFor(data, ownerId) {
+  return (data.allTime?.headToHead || [])
+    .filter((h) => h.ownerIds.includes(ownerId))
+    .map((h) => {
+      const opponentId = h.ownerIds.find((id) => id !== ownerId);
+      return {
+        opponentId,
+        wins: h.wins[ownerId] || 0,
+        losses: h.wins[opponentId] || 0,
+        ties: h.ties,
+        meetings: h.meetings,
+        pointsFor: h.pointsBy[ownerId] || 0,
+        pointsAgainst: h.pointsBy[opponentId] || 0,
+      };
+    });
+}

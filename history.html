@@ -14,9 +14,12 @@
     <h1 class="site-title"><span class="ball">🏈</span><span id="league-name">Whippany Fantasy Football League</span></h1>
     <p class="site-subtitle">Current standings, league history, and all-time records</p>
     <nav class="site-nav">
-      <a href="index.html">Current Standings</a>
-      <a href="history.html">League History</a>
-      <a href="records.html">All-Time Records</a>
+      <a href="index.html">Home</a>
+      <a href="stats.html">Stats</a>
+      <a href="records.html">Records</a>
+      <a href="headtohead.html">Head-to-Head</a>
+      <a href="history.html">History</a>
+      <a href="constitution.html">Constitution</a>
     </nav>
   </div>
 </header>
@@ -40,8 +43,11 @@
       document.getElementById("league-name").textContent = data.leagueName;
       setLastUpdated(data);
 
+      content.innerHTML = "";
+      const banner = sampleBanner(data);
+      if (banner) content.appendChild(banner);
+
       if (!data.seasons || data.seasons.length === 0) {
-        content.innerHTML = "";
         content.appendChild(
           emptyState([
             "No history yet. Once the scheduled GitHub Action runs (or you run ",
@@ -51,8 +57,6 @@
         );
         return;
       }
-
-      content.innerHTML = "";
 
       const champCounts = data.allTime?.championships || [];
       if (champCounts.length > 0) {
@@ -85,8 +89,8 @@
     champs.forEach((c) => {
       tbody.appendChild(
         el("tr", {}, [
-          el("td", {}, c.managerName),
-          el("td", {}, c.teamName),
+          el("td", {}, managerLink(c.ownerId, c.managerName)),
+          el("td", {}, managerLink(c.ownerId, c.teamName)),
           el("td", {}, "🏆".repeat(c.count) + ` (${c.count})`),
         ])
       );
@@ -113,8 +117,12 @@
         el("tr", {}, [
           el("td", {}, String(s.year) + (s.source === "manual" ? " *" : "")),
           el("td", {}, (s.status || "").replace("_", " ") || "—"),
-          el("td", { class: s.champion ? "rank-1" : "" }, s.champion ? `🏆 ${s.champion.teamName}` : "TBD"),
-          el("td", {}, s.runnerUp ? s.runnerUp.teamName : "—"),
+          el(
+            "td",
+            { class: s.champion ? "rank-1" : "" },
+            s.champion ? el("span", {}, ["🏆 ", managerLink(s.champion.ownerId, s.champion.teamName)]) : "TBD"
+          ),
+          el("td", {}, s.runnerUp ? managerLink(s.runnerUp.ownerId, s.runnerUp.teamName) : "—"),
         ])
       );
     });
