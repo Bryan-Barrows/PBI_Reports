@@ -10,6 +10,8 @@ below) so it can be previewed end-to-end before real history is imported.
 ## Site map
 
 - **Home** (`index.html`) — current season standings + championships won per owner.
+- **Draft Central** (`draftcentral.html`) — live countdown to the draft, draft
+  order, keepers, and any trades affecting draft picks.
 - **Stats** (`stats.html`) — directory of every manager (click through to their
   profile) plus the all-time standings table.
 - **Manager profile** (`manager.html?id=<ownerId>`) — one manager's career record,
@@ -173,6 +175,35 @@ pages will just be empty for that season (standings/champions still work fine).
 `ownerId` must be a stable, consistent identifier per manager across every
 season (Sleeper's `user_id` for Sleeper seasons) so career stats and
 head-to-head add up correctly across years.
+
+## Draft Central
+
+The Draft Central page pulls most of its content straight from Sleeper's draft
+API each time the fetch script runs:
+
+- **Countdown & draft order** — from the league's draft object (`start_time`,
+  `draft_order`). Updates automatically as soon as your commissioner sets a
+  draft date/time and order in Sleeper.
+- **Trades affecting the draft** — from Sleeper's traded-picks list, filtered
+  to the upcoming season.
+
+**Keepers have no equivalent in Sleeper's API** — most leagues track keeper
+rules and costs outside the platform, so this one's entirely manual. Edit the
+`draftCentral.keepers` array directly in `data/league-data.json` (the fetch
+script never touches it, so it survives every auto-update):
+
+```json
+{
+  "draftCentral": {
+    "keepers": [
+      { "ownerId": "p1", "teamName": "...", "playerName": "...", "round": 4, "notes": "" }
+    ]
+  }
+}
+```
+
+`ownerId` should match the `personId` you used in `data/manager-map.json` so
+the keeper links to the right manager's profile.
 
 ## Customizing
 

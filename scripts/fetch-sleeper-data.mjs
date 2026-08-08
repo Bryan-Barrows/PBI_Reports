@@ -201,6 +201,10 @@ async function fetchSeason(leagueId, managerMap) {
     })
   );
 
+  // Same identity info as rosterMeta, but keyed by Sleeper user_id instead of
+  // roster_id — the draft endpoints (draft_order) key by user_id, not roster_id.
+  const ownerMetaByUserId = new Map((rosters || []).map((r) => [r.owner_id, rosterMeta.get(r.roster_id)]));
+
   const standings = (rosters || [])
     .map((r) => {
       const meta = rosterMeta.get(r.roster_id);
@@ -266,10 +270,71 @@ async function fetchSeason(leagueId, managerMap) {
     previousLeagueId: league.previous_league_id || null,
   };
 
-  // rosterMeta is returned alongside (not persisted as part of the season
-  // object itself) so main() can reuse it for the current league's weekly
-  // awards without a redundant users/rosters fetch.
-  return { season, rosterMeta };
+  // rosterMeta/ownerMetaByUserId are returned alongside (not persisted as
+  // part of the season object itself) so main() can reuse them for the
+  // current league's weekly awards and draft info without redundant fetches.
+  return { season, rosterMeta, ownerMetaByUserId };
+}
+
+// Pulls the current/upcoming draft: countdown target, draft order, and any
+// traded picks affecting it. Keepers have no equivalent in Sleeper's API —
+// those stay purely manual, merged in by the caller.
+async function fetchDraftCentral(leagueId, rosterMeta, ownerMetaByUserId, year) {
+  let drafts;
+  try {
+    drafts = await sleeperGet(`/league/${leagueId}/drafts`);
+  } catch (err) {
+    console.warn(`  Failed to fetch drafts for league ${leagueId}: ${err.message}`);
+    return null;
+  }
+  if (!drafts || drafts.length === 0) return null;
+
+  const draft = drafts[0]; // leagues normally have exactly one draft per season
+  if (!draft) return null;
+
+  let draftOrder = [];
+  if (draft.draft_order) {
+    draftOrder = Object.entries(draft.draft_order)
+      .map(([userId, pick]) => {
+        const meta = ownerMetaByUserId.get(userId);
+        return { pick, ownerId: meta?.ownerId ?? null, teamName: meta?.teamName ?? "Unknown", managerName: meta?.managerName ?? "Unknown" };
+      })
+      .sort((a, b) => a.pick - b.pick);
+  }
+
+  let tradedPicks = [];
+  try {
+    const raw = await sleeperGet(`/league/${leagueId}/traded_picks`);
+    tradedPicks = (raw || [])
+      .filter((p) => String(p.season) === String(year))
+      .map((p) => {
+        const original = rosterMeta.get(p.roster_id);
+        const current = rosterMeta.get(p.owner_id);
+        const previous = rosterMeta.get(p.previous_owner_id);
+        return {
+          round: p.round,
+          season: p.season,
+          originalTeamName: original?.teamName ?? "Unknown",
+          originalOwnerId: original?.ownerId ?? null,
+          currentTeamName: current?.teamName ?? "Unknown",
+          currentOwnerId: current?.ownerId ?? null,
+          previousTeamName: previous?.teamName ?? "Unknown",
+          previousOwnerId: previous?.ownerId ?? null,
+        };
+      })
+      .sort((a, b) => a.round - b.round);
+  } catch (err) {
+    console.warn(`  Failed to fetch traded picks: ${err.message}`);
+  }
+
+  return {
+    year,
+    draftId: draft.draft_id,
+    status: draft.status, // 'pre_draft' | 'drafting' | 'complete'
+    startTime: draft.start_time ? new Date(draft.start_time).toISOString() : null,
+    draftOrder,
+    tradedPicks,
+  };
 }
 
 async function main() {
@@ -296,7 +361,8 @@ async function main() {
   console.log(`Starting from league ${startLeagueId}, walking history backward...`);
 
   const seasons = [];
-  let currentRosterMeta = null; // rosterMeta for startLeagueId specifically, captured below
+  let currentRosterMeta = null; // rosterMeta/ownerMetaByUserId for startLeagueId specifically, captured below
+  let currentOwnerMetaByUserId = null;
   let cursor = startLeagueId;
   const seen = new Set();
 
@@ -314,8 +380,11 @@ async function main() {
       console.warn(`  League ${cursor} not found. Stopping walk here.`);
       break;
     }
-    const { season, rosterMeta } = result;
-    if (cursor === startLeagueId) currentRosterMeta = rosterMeta;
+    const { season, rosterMeta, ownerMetaByUserId } = result;
+    if (cursor === startLeagueId) {
+      currentRosterMeta = rosterMeta;
+      currentOwnerMetaByUserId = ownerMetaByUserId;
+    }
     console.log(`  Season ${season.year}: ${season.standings.length} teams, ${season.games.length} games found.`);
     seasons.push(season);
     cursor = season.previousLeagueId;
@@ -365,6 +434,20 @@ async function main() {
     }
   }
 
+  // Draft Central: countdown/order/traded-picks come from Sleeper; keepers
+  // are purely manual and simply carried forward from whatever was there.
+  let draftCentral = existing.draftCentral || null;
+  if (currentSeason && currentRosterMeta && currentOwnerMetaByUserId) {
+    try {
+      const fetched = await fetchDraftCentral(startLeagueId, currentRosterMeta, currentOwnerMetaByUserId, currentSeason.year);
+      if (fetched) {
+        draftCentral = { ...fetched, keepers: existing.draftCentral?.keepers || [] };
+      }
+    } catch (err) {
+      console.warn(`  Failed to fetch Draft Central data: ${err.message}`);
+    }
+  }
+
   const output = {
     leagueName: existing.leagueName || "Fantasy Football League",
     platform: "sleeper",
@@ -375,6 +458,7 @@ async function main() {
     constitutionText: existing.constitutionText || null,
     logoPath: logoPath || existing.logoPath || null,
     weeklyAwards: weeklyAwards || existing.weeklyAwards || null,
+    draftCentral,
     allTime,
     notes: existing.notes || [],
   };

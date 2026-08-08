@@ -277,6 +277,57 @@ async function main() {
       }
     : null;
 
+  // Fabricate a Draft Central section: a shuffled draft order, a countdown a
+  // few weeks out, and a couple of sample trades/keepers.
+  const draftOrder = shuffled(MANAGERS).map((m, i) => ({
+    pick: i + 1,
+    ownerId: m.ownerId,
+    teamName: m.teamName,
+    managerName: m.managerName,
+  }));
+  const draftStartTime = new Date(Date.now() + 21 * 24 * 60 * 60 * 1000);
+  draftStartTime.setHours(19, 0, 0, 0);
+  const draftCentral = {
+    year: 2026,
+    draftId: "sample",
+    status: "pre_draft",
+    startTime: draftStartTime.toISOString(),
+    draftOrder,
+    tradedPicks: [
+      {
+        round: 3,
+        season: "2026",
+        originalTeamName: MANAGERS[0].teamName,
+        originalOwnerId: MANAGERS[0].ownerId,
+        currentTeamName: MANAGERS[5].teamName,
+        currentOwnerId: MANAGERS[5].ownerId,
+        previousTeamName: MANAGERS[0].teamName,
+        previousOwnerId: MANAGERS[0].ownerId,
+      },
+      {
+        round: 7,
+        season: "2026",
+        originalTeamName: MANAGERS[2].teamName,
+        originalOwnerId: MANAGERS[2].ownerId,
+        currentTeamName: MANAGERS[9].teamName,
+        currentOwnerId: MANAGERS[9].ownerId,
+        previousTeamName: MANAGERS[2].teamName,
+        previousOwnerId: MANAGERS[2].ownerId,
+      },
+    ],
+    keepers: [
+      { ownerId: MANAGERS[3].ownerId, teamName: MANAGERS[3].teamName, playerName: "Marcus Fielding", round: 4, notes: "" },
+      { ownerId: MANAGERS[1].ownerId, teamName: MANAGERS[1].teamName, playerName: "Deion Marsh", round: 6, notes: "" },
+      {
+        ownerId: MANAGERS[7].ownerId,
+        teamName: MANAGERS[7].teamName,
+        playerName: "Trey Caldwell",
+        round: 2,
+        notes: "Cost increased due to breakout season",
+      },
+    ],
+  };
+
   const output = {
     leagueName: existing.leagueName || "Whippany Fantasy Football League (WFFL)",
     platform: existing.platform || "sleeper",
@@ -287,6 +338,7 @@ async function main() {
     constitutionText: existing.constitutionText || SAMPLE_CONSTITUTION_TEXT,
     logoPath: existing.logoPath && !existing.isSampleData ? existing.logoPath : SAMPLE_LOGO_DATA_URI,
     weeklyAwards,
+    draftCentral,
     allTime,
     notes: [
       "This is fabricated SAMPLE data for previewing the site's design and features.",

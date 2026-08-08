@@ -3,7 +3,7 @@
   "platform": "sleeper",
   "currentLeagueId": "1378040940861607936",
   "isSampleData": true,
-  "lastUpdated": "2026-08-08T13:21:28.471Z",
+  "lastUpdated": "2026-08-08T14:06:29.104Z",
   "seasons": [
     {
       "year": 2026,
@@ -21582,6 +21582,131 @@
       "fantasyTeamName": "Hail Mary Heroes",
       "fantasyOwnerId": "m6"
     }
+  },
+  "draftCentral": {
+    "year": 2026,
+    "draftId": "sample",
+    "status": "pre_draft",
+    "startTime": "2026-08-29T19:00:00.000Z",
+    "draftOrder": [
+      {
+        "pick": 1,
+        "ownerId": "m1",
+        "teamName": "Gridiron Gang",
+        "managerName": "Alex"
+      },
+      {
+        "pick": 2,
+        "ownerId": "m11",
+        "teamName": "Field Goal Fanatics",
+        "managerName": "Quinn"
+      },
+      {
+        "pick": 3,
+        "ownerId": "m9",
+        "teamName": "Sack Attack",
+        "managerName": "Drew"
+      },
+      {
+        "pick": 4,
+        "ownerId": "m3",
+        "teamName": "End Zone Elite",
+        "managerName": "Jordan"
+      },
+      {
+        "pick": 5,
+        "ownerId": "m5",
+        "teamName": "Red Zone Raiders",
+        "managerName": "Morgan"
+      },
+      {
+        "pick": 6,
+        "ownerId": "m10",
+        "teamName": "Punt Return Kings",
+        "managerName": "Cameron"
+      },
+      {
+        "pick": 7,
+        "ownerId": "m7",
+        "teamName": "Pigskin Prophets",
+        "managerName": "Riley"
+      },
+      {
+        "pick": 8,
+        "ownerId": "m4",
+        "teamName": "Blitz Brigade",
+        "managerName": "Casey"
+      },
+      {
+        "pick": 9,
+        "ownerId": "m2",
+        "teamName": "Turf Titans",
+        "managerName": "Sam"
+      },
+      {
+        "pick": 10,
+        "ownerId": "m8",
+        "teamName": "Fumble Dynasty",
+        "managerName": "Jamie"
+      },
+      {
+        "pick": 11,
+        "ownerId": "m6",
+        "teamName": "Hail Mary Heroes",
+        "managerName": "Taylor"
+      },
+      {
+        "pick": 12,
+        "ownerId": "m12",
+        "teamName": "Two-Point Terrors",
+        "managerName": "Avery"
+      }
+    ],
+    "tradedPicks": [
+      {
+        "round": 3,
+        "season": "2026",
+        "originalTeamName": "Gridiron Gang",
+        "originalOwnerId": "m1",
+        "currentTeamName": "Hail Mary Heroes",
+        "currentOwnerId": "m6",
+        "previousTeamName": "Gridiron Gang",
+        "previousOwnerId": "m1"
+      },
+      {
+        "round": 7,
+        "season": "2026",
+        "originalTeamName": "End Zone Elite",
+        "originalOwnerId": "m3",
+        "currentTeamName": "Punt Return Kings",
+        "currentOwnerId": "m10",
+        "previousTeamName": "End Zone Elite",
+        "previousOwnerId": "m3"
+      }
+    ],
+    "keepers": [
+      {
+        "ownerId": "m4",
+        "teamName": "Blitz Brigade",
+        "playerName": "Marcus Fielding",
+        "round": 4,
+        "notes": ""
+      },
+      {
+        "ownerId": "m2",
+        "teamName": "Turf Titans",
+        "playerName": "Deion Marsh",
+        "round": 6,
+        "notes": ""
+      },
+      {
+        "ownerId": "m8",
+        "teamName": "Fumble Dynasty",
+        "playerName": "Trey Caldwell",
+        "round": 2,
+        "notes": "Cost increased due to breakout season"
+      }
+    ]
   },
   "allTime": {
     "standings": [
