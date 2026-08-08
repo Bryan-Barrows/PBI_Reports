@@ -64,6 +64,41 @@ Two data sources are expected:
    `"source": "excel"` or `"manual"` so the Sleeper fetch never overwrites them).
    This script will be added once the spreadsheet is provided.
 
+### The manager identity problem
+
+Sleeper knows managers by their Sleeper username/display name. The Excel sheet
+knows them by real first name. Those two won't match on their own, which would
+otherwise split one person's career into two separate "people" — one with their
+Sleeper seasons, one with their Excel seasons.
+
+`data/manager-map.json` fixes this by giving each real person one stable
+`personId` that both data sources resolve into:
+
+```json
+[
+  {
+    "personId": "p1",
+    "canonicalName": "Alex",
+    "sleeperUsernames": ["AlexSleeperHandle"],
+    "excelNames": ["Alex"]
+  }
+]
+```
+
+- `canonicalName` is what the site displays everywhere, regardless of what
+  someone's Sleeper display name or team name happens to be.
+- `sleeperUsernames` matches against that person's Sleeper username *or*
+  display name (case-insensitive) — list any variants they've used.
+- `excelNames` matches against however they appear in the historical
+  spreadsheet.
+
+**To fill this in**, provide a list of all 12 managers as: their real first
+name → their Sleeper username (or the display name shown in the league). The
+fetch script warns (in the Action's log) about any Sleeper manager it can't
+find in the map, so gaps are easy to spot. Until someone is mapped, they still
+show up on the site under their raw Sleeper identity — nothing breaks, their
+history just won't merge with pre-Sleeper seasons yet.
+
 ## One-time setup
 
 ### 1. Enable GitHub Pages (free hosting)

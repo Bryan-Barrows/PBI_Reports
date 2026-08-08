@@ -25,6 +25,7 @@ import { readFile, writeFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { computeAggregates } from "./lib/aggregate.mjs";
+import { loadManagerMap, resolveBySleeperIdentity } from "./lib/manager-map.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_PATH = path.join(__dirname, "..", "data", "league-data.json");
@@ -73,6 +74,21 @@ function teamNameFor(user) {
   );
 }
 
+// Resolves a Sleeper user to our stable cross-source identity via
+// data/manager-map.json. Falls back to Sleeper's own user_id/display_name
+// (and warns) for anyone not yet in the map, so the pipeline never breaks —
+// it just can't merge that person's history until they're mapped.
+function resolvePerson(managerMap, user) {
+  if (!user) return { ownerId: null, managerName: "Unknown" };
+  const match = resolveBySleeperIdentity(managerMap, { username: user.username, displayName: user.display_name });
+  if (match) return { ownerId: match.personId, managerName: match.canonicalName };
+  console.warn(
+    `  No manager-map entry for Sleeper user "${user.display_name}" (username: ${user.username}, user_id: ${user.user_id}) — ` +
+      `using their raw Sleeper identity for now. Add them to data/manager-map.json to merge with historical data.`
+  );
+  return { ownerId: user.user_id, managerName: user.display_name || "Unknown" };
+}
+
 async function fetchGames(leagueId, rosterMeta, playoffWeekStart) {
   const games = [];
   for (let week = 1; week <= MAX_WEEKS_TO_CHECK; week++) {
@@ -108,7 +124,7 @@ async function fetchGames(leagueId, rosterMeta, playoffWeekStart) {
   return games;
 }
 
-async function fetchSeason(leagueId) {
+async function fetchSeason(leagueId, managerMap) {
   const league = await sleeperGet(`/league/${leagueId}`);
   if (!league) return null;
 
@@ -121,23 +137,24 @@ async function fetchSeason(leagueId) {
   const usersById = new Map((users || []).map((u) => [u.user_id, u]));
 
   const rosterMeta = new Map(
-    (rosters || []).map((r) => [
-      r.roster_id,
-      { ownerId: r.owner_id, teamName: teamNameFor(usersById.get(r.owner_id)) },
-    ])
+    (rosters || []).map((r) => {
+      const user = usersById.get(r.owner_id);
+      const person = resolvePerson(managerMap, user);
+      return [r.roster_id, { ownerId: person.ownerId, managerName: person.managerName, teamName: teamNameFor(user) }];
+    })
   );
 
   const standings = (rosters || [])
     .map((r) => {
-      const user = usersById.get(r.owner_id);
+      const meta = rosterMeta.get(r.roster_id);
       const s = r.settings || {};
       const fpts = (s.fpts || 0) + (s.fpts_decimal || 0) / 100;
       const fptsAgainst = (s.fpts_against || 0) + (s.fpts_against_decimal || 0) / 100;
       return {
         rosterId: r.roster_id,
-        ownerId: r.owner_id,
-        managerName: user?.display_name || "Unknown",
-        teamName: teamNameFor(user),
+        ownerId: meta.ownerId,
+        managerName: meta.managerName,
+        teamName: meta.teamName,
         wins: s.wins || 0,
         losses: s.losses || 0,
         ties: s.ties || 0,
@@ -206,6 +223,14 @@ async function main() {
     process.exit(1);
   }
 
+  const managerMap = await loadManagerMap();
+  if (managerMap.length === 0) {
+    console.warn(
+      "  data/manager-map.json is empty — every Sleeper manager will show up under their raw Sleeper " +
+        "identity, and historical (Excel-imported) seasons won't merge with them. Fill in the map when ready."
+    );
+  }
+
   console.log(`Starting from league ${startLeagueId}, walking history backward...`);
 
   const seasons = [];
@@ -217,7 +242,7 @@ async function main() {
     console.log(`Fetching season for league ${cursor}...`);
     let season;
     try {
-      season = await fetchSeason(cursor);
+      season = await fetchSeason(cursor, managerMap);
     } catch (err) {
       console.error(`  Failed to fetch league ${cursor}: ${err.message}. Stopping walk here.`);
       break;
@@ -229,6 +254,15 @@ async function main() {
     console.log(`  Season ${season.year}: ${season.standings.length} teams, ${season.games.length} games found.`);
     seasons.push(season);
     cursor = season.previousLeagueId;
+  }
+
+  if (seasons.length === 0) {
+    console.error(
+      `Fetched zero seasons from Sleeper for league ${startLeagueId} — refusing to overwrite ` +
+        `${DATA_PATH} (it would wipe out or mislabel whatever data is already there). Check the ` +
+        "league ID and network access, then try again."
+    );
+    process.exit(1);
   }
 
   seasons.sort((a, b) => b.year - a.year);
