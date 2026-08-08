@@ -48,6 +48,9 @@
       const banner = sampleBanner(data);
       if (banner) content.appendChild(banner);
 
+      const bannerHall = buildBannerHall(data.seasons || []);
+      if (bannerHall) content.appendChild(bannerHall);
+
       if (!data.seasons || data.seasons.length === 0) {
         content.appendChild(
           emptyState([
@@ -88,6 +91,27 @@
       content.innerHTML = "";
       content.appendChild(emptyState(`Couldn't load league data: ${err.message}`));
     }
+  }
+
+  function buildBannerHall(seasons) {
+    const champSeasons = seasons.filter((s) => s.champion).sort((a, b) => a.year - b.year);
+    if (champSeasons.length === 0) return null;
+
+    const banners = champSeasons.map((s, i) => {
+      const isLatest = i === champSeasons.length - 1;
+      return el("div", { class: `championship-banner${isLatest ? " latest" : ""}` }, [
+        el("div", { class: "banner-year" }, String(s.year)),
+        el("div", { class: "banner-trophy" }, "🏆"),
+        el("div", { class: "banner-team" }, managerLink(s.champion.ownerId, s.champion.teamName)),
+        el("div", { class: "banner-owner" }, s.champion.managerName),
+      ]);
+    });
+
+    return el("div", { class: "banner-hall" }, [
+      el("h2", {}, "🏟️ Championship Banners"),
+      el("div", { class: "rafter-beam" }),
+      el("div", { class: "banner-row" }, banners),
+    ]);
   }
 
   function statTile(value, label) {
