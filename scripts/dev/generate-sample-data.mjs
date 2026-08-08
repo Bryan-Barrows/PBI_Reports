@@ -16,7 +16,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { computeAggregates } from "../lib/aggregate.mjs";
+import { computeAggregates, computeWeekAwards } from "../lib/aggregate.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_PATH = path.join(__dirname, "..", "..", "data", "league-data.json");
@@ -231,6 +231,17 @@ function generatePreDraftSeason(year) {
   };
 }
 
+// Fictional players (not real NFL players) for fabricating the "top
+// individual performance" weekly award, since the sample generator doesn't
+// simulate real player-level box scores.
+const FAKE_PLAYERS = [
+  { name: "Marcus Fielding", position: "RB", team: "KC" },
+  { name: "Deion Marsh", position: "WR", team: "SF" },
+  { name: "Trey Caldwell", position: "QB", team: "BUF" },
+  { name: "Jaylen Cross", position: "WR", team: "MIA" },
+  { name: "Antoine Ruiz", position: "RB", team: "DAL" },
+];
+
 async function main() {
   const existingRaw = await readFile(DATA_PATH, "utf-8").catch(() => null);
   const existing = existingRaw ? JSON.parse(existingRaw) : {};
@@ -243,6 +254,29 @@ async function main() {
 
   const allTime = computeAggregates(seasons);
 
+  // Fabricate a "most recent week" awards section the same way the real
+  // fetch script would compute it, using the latest complete season's games.
+  const latestCompleteSeason = seasons.find((s) => s.year === END_YEAR);
+  const latestWeek = REGULAR_WEEKS + PLAYOFF_WEEKS;
+  const teamAwards = computeWeekAwards(latestCompleteSeason.games, latestWeek);
+  const fakePlayer = FAKE_PLAYERS[Math.floor(rng() * FAKE_PLAYERS.length)];
+  const fakeTeam = MANAGERS[Math.floor(rng() * MANAGERS.length)];
+  const weeklyAwards = teamAwards
+    ? {
+        year: END_YEAR,
+        ...teamAwards,
+        topPlayer: {
+          playerId: "sample",
+          playerName: fakePlayer.name,
+          position: fakePlayer.position,
+          nflTeam: fakePlayer.team,
+          points: Number((32 + rng() * 20).toFixed(2)),
+          fantasyTeamName: fakeTeam.teamName,
+          fantasyOwnerId: fakeTeam.ownerId,
+        },
+      }
+    : null;
+
   const output = {
     leagueName: existing.leagueName || "Whippany Fantasy Football League (WFFL)",
     platform: existing.platform || "sleeper",
@@ -252,6 +286,7 @@ async function main() {
     seasons,
     constitutionText: existing.constitutionText || SAMPLE_CONSTITUTION_TEXT,
     logoPath: existing.logoPath && !existing.isSampleData ? existing.logoPath : SAMPLE_LOGO_DATA_URI,
+    weeklyAwards,
     allTime,
     notes: [
       "This is fabricated SAMPLE data for previewing the site's design and features.",

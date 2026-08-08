@@ -28,6 +28,36 @@ export function computeAggregates(seasons) {
   };
 }
 
+// Team-level awards (most/fewest points, biggest margin) for a single week
+// of a single season's games. Doesn't know about individual NFL players —
+// that's Sleeper-specific and layered on separately by the fetch script.
+export function computeWeekAwards(games, week) {
+  const weekGames = (games || []).filter((g) => g.week === week && g.teamA && g.teamB);
+  if (weekGames.length === 0) return null;
+
+  const performances = [];
+  for (const g of weekGames) {
+    performances.push({ ownerId: g.teamA.ownerId, teamName: g.teamA.teamName, points: g.teamA.score, opponentTeamName: g.teamB.teamName });
+    performances.push({ ownerId: g.teamB.ownerId, teamName: g.teamB.teamName, points: g.teamB.score, opponentTeamName: g.teamA.teamName });
+  }
+
+  const mostPoints = performances.reduce((best, p) => (!best || p.points > best.points ? p : best), null);
+  const fewestPoints = performances.reduce((worst, p) => (!worst || p.points < worst.points ? p : worst), null);
+
+  let biggestMargin = null;
+  for (const g of weekGames) {
+    if (g.teamA.score === g.teamB.score) continue;
+    const margin = Number(Math.abs(g.teamA.score - g.teamB.score).toFixed(2));
+    if (!biggestMargin || margin > biggestMargin.margin) {
+      const winner = g.teamA.score > g.teamB.score ? g.teamA : g.teamB;
+      const loser = g.teamA.score > g.teamB.score ? g.teamB : g.teamA;
+      biggestMargin = { margin, winner, loser };
+    }
+  }
+
+  return { week, mostPoints, fewestPoints, biggestMargin };
+}
+
 function computeCareerStandings(seasons) {
   const byOwner = new Map();
 
@@ -48,6 +78,7 @@ function computeCareerStandings(seasons) {
           pointsFor: 0,
           pointsAgainst: 0,
           championships: 0,
+          championshipYears: [],
           years: [],
         };
       agg.seasonsPlayed += 1;
@@ -63,7 +94,10 @@ function computeCareerStandings(seasons) {
     }
     if (season.champion?.ownerId) {
       const agg = byOwner.get(season.champion.ownerId);
-      if (agg) agg.championships += 1;
+      if (agg) {
+        agg.championships += 1;
+        agg.championshipYears.push(season.year);
+      }
     }
   }
 
@@ -71,6 +105,7 @@ function computeCareerStandings(seasons) {
     agg.pointsFor = Number(agg.pointsFor.toFixed(2));
     agg.pointsAgainst = Number(agg.pointsAgainst.toFixed(2));
     agg.years.sort((a, b) => a - b);
+    agg.championshipYears.sort((a, b) => a - b);
   }
 
   return byOwner;
@@ -84,6 +119,7 @@ function computeChampionships(careerByOwner) {
       managerName: a.managerName,
       teamName: a.teamName,
       count: a.championships,
+      years: a.championshipYears,
     }))
     .sort((a, b) => b.count - a.count);
 }

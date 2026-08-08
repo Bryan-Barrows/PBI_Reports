@@ -3,7 +3,7 @@
   "platform": "sleeper",
   "currentLeagueId": "1378040940861607936",
   "isSampleData": true,
-  "lastUpdated": "2026-08-08T13:11:32.831Z",
+  "lastUpdated": "2026-08-08T13:21:28.471Z",
   "seasons": [
     {
       "year": 2026,
@@ -21545,6 +21545,44 @@
   ],
   "constitutionText": "PLACEHOLDER — this is sample text so you can see how the Constitution page\nlooks. Replace this with your real league's rules once you upload them.\n\n1. LEAGUE FORMAT\n   12 teams, head-to-head, PPR scoring. 13-week regular season followed by a\n   3-week playoff bracket among the top 6 finishers.\n\n2. DRAFT\n   Snake draft order is randomized each year. Draft date/time set by\n   commissioner vote.\n\n3. SCORING\n   Standard PPR. See the auto-generated League Settings box on this page for\n   the exact scoring/roster rules currently on file (pulled automatically\n   from Sleeper).\n\n4. PLAYOFFS\n   Top 6 teams make the playoffs. Seeds 1-2 get a first-round bye.\n\n5. PAYOUTS\n   TBD — replace with your league's actual payout structure.\n\n6. PENALTIES / LAST PLACE\n   TBD — replace with your league's actual last-place punishment tradition.\n",
   "logoPath": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+CiAgPGRlZnM+PGNsaXBQYXRoIGlkPSJjIj48Y2lyY2xlIGN4PSIzMiIgY3k9IjMyIiByPSIzMCIvPjwvY2xpcFBhdGg+PC9kZWZzPgogIDxjaXJjbGUgY3g9IjMyIiBjeT0iMzIiIHI9IjMxIiBmaWxsPSIjZjVmN2ZiIi8+CiAgPGcgY2xpcC1wYXRoPSJ1cmwoI2MpIj4KICAgIDxyZWN0IHdpZHRoPSI2NCIgaGVpZ2h0PSI2NCIgZmlsbD0iI2Y1ZjdmYiIvPgogICAgPHJlY3QgeT0iOCIgd2lkdGg9IjY0IiBoZWlnaHQ9IjYiIGZpbGw9IiNlZjQ0NDQiLz4KICAgIDxyZWN0IHk9IjIwIiB3aWR0aD0iNjQiIGhlaWdodD0iNiIgZmlsbD0iI2VmNDQ0NCIvPgogICAgPHJlY3QgeT0iMzIiIHdpZHRoPSI2NCIgaGVpZ2h0PSI2IiBmaWxsPSIjZWY0NDQ0Ii8+CiAgICA8cmVjdCB5PSI0NCIgd2lkdGg9IjY0IiBoZWlnaHQ9IjYiIGZpbGw9IiNlZjQ0NDQiLz4KICAgIDxyZWN0IHk9IjU2IiB3aWR0aD0iNjQiIGhlaWdodD0iNiIgZmlsbD0iI2VmNDQ0NCIvPgogICAgPHJlY3Qgd2lkdGg9IjMwIiBoZWlnaHQ9IjMwIiBmaWxsPSIjMWQ0ZWQ4Ii8+CiAgICA8dGV4dCB4PSIxNSIgeT0iMjEiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxOCIgZm9udC13ZWlnaHQ9IjkwMCIgZmlsbD0iI2Y1ZjdmYiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+VzwvdGV4dD4KICA8L2c+CiAgPGNpcmNsZSBjeD0iMzIiIGN5PSIzMiIgcj0iMzAuNSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMWQ0ZWQ4IiBzdHJva2Utd2lkdGg9IjEuNSIvPgo8L3N2Zz4=",
+  "weeklyAwards": {
+    "year": 2025,
+    "week": 16,
+    "mostPoints": {
+      "ownerId": "m5",
+      "teamName": "Red Zone Raiders",
+      "points": 152.28,
+      "opponentTeamName": "Hail Mary Heroes"
+    },
+    "fewestPoints": {
+      "ownerId": "m11",
+      "teamName": "Field Goal Fanatics",
+      "points": 91.8,
+      "opponentTeamName": "Turf Titans"
+    },
+    "biggestMargin": {
+      "margin": 54.44,
+      "winner": {
+        "ownerId": "m3",
+        "teamName": "End Zone Elite",
+        "score": 152.16
+      },
+      "loser": {
+        "ownerId": "m9",
+        "teamName": "Sack Attack",
+        "score": 97.72
+      }
+    },
+    "topPlayer": {
+      "playerId": "sample",
+      "playerName": "Jaylen Cross",
+      "position": "WR",
+      "nflTeam": "MIA",
+      "points": 41.08,
+      "fantasyTeamName": "Hail Mary Heroes",
+      "fantasyOwnerId": "m6"
+    }
+  },
   "allTime": {
     "standings": [
       {
@@ -21558,6 +21596,13 @@
         "pointsFor": 28879.65,
         "pointsAgainst": 25815.48,
         "championships": 5,
+        "championshipYears": [
+          2012,
+          2014,
+          2016,
+          2021,
+          2025
+        ],
         "years": [
           2012,
           2013,
@@ -21586,6 +21631,11 @@
         "pointsFor": 27916.91,
         "pointsAgainst": 25645.59,
         "championships": 3,
+        "championshipYears": [
+          2017,
+          2019,
+          2022
+        ],
         "years": [
           2012,
           2013,
@@ -21614,6 +21664,10 @@
         "pointsFor": 28566.75,
         "pointsAgainst": 26282.46,
         "championships": 2,
+        "championshipYears": [
+          2020,
+          2023
+        ],
         "years": [
           2012,
           2013,
@@ -21642,6 +21696,10 @@
         "pointsFor": 27631.58,
         "pointsAgainst": 26378.71,
         "championships": 2,
+        "championshipYears": [
+          2015,
+          2018
+        ],
         "years": [
           2012,
           2013,
@@ -21670,6 +21728,7 @@
         "pointsFor": 26669.79,
         "pointsAgainst": 26101.87,
         "championships": 0,
+        "championshipYears": [],
         "years": [
           2012,
           2013,
@@ -21698,6 +21757,9 @@
         "pointsFor": 27626.85,
         "pointsAgainst": 26460.23,
         "championships": 1,
+        "championshipYears": [
+          2013
+        ],
         "years": [
           2012,
           2013,
@@ -21726,6 +21788,9 @@
         "pointsFor": 26827.45,
         "pointsAgainst": 26185.36,
         "championships": 1,
+        "championshipYears": [
+          2024
+        ],
         "years": [
           2012,
           2013,
@@ -21754,6 +21819,7 @@
         "pointsFor": 26708.89,
         "pointsAgainst": 26639.86,
         "championships": 0,
+        "championshipYears": [],
         "years": [
           2012,
           2013,
@@ -21782,6 +21848,7 @@
         "pointsFor": 24360.77,
         "pointsAgainst": 25798.96,
         "championships": 0,
+        "championshipYears": [],
         "years": [
           2012,
           2013,
@@ -21810,6 +21877,7 @@
         "pointsFor": 23299.12,
         "pointsAgainst": 26403.83,
         "championships": 0,
+        "championshipYears": [],
         "years": [
           2012,
           2013,
@@ -21838,6 +21906,7 @@
         "pointsFor": 24173.85,
         "pointsAgainst": 27125.64,
         "championships": 0,
+        "championshipYears": [],
         "years": [
           2012,
           2013,
@@ -21866,6 +21935,7 @@
         "pointsFor": 22497.85,
         "pointsAgainst": 26321.47,
         "championships": 0,
+        "championshipYears": [],
         "years": [
           2012,
           2013,
@@ -21889,37 +21959,63 @@
         "ownerId": "m4",
         "managerName": "Casey",
         "teamName": "Blitz Brigade",
-        "count": 5
+        "count": 5,
+        "years": [
+          2012,
+          2014,
+          2016,
+          2021,
+          2025
+        ]
       },
       {
         "ownerId": "m3",
         "managerName": "Jordan",
         "teamName": "End Zone Elite",
-        "count": 3
+        "count": 3,
+        "years": [
+          2017,
+          2019,
+          2022
+        ]
       },
       {
         "ownerId": "m2",
         "managerName": "Sam",
         "teamName": "Turf Titans",
-        "count": 2
+        "count": 2,
+        "years": [
+          2020,
+          2023
+        ]
       },
       {
         "ownerId": "m1",
         "managerName": "Alex",
         "teamName": "Gridiron Gang",
-        "count": 2
+        "count": 2,
+        "years": [
+          2015,
+          2018
+        ]
       },
       {
         "ownerId": "m5",
         "managerName": "Morgan",
         "teamName": "Red Zone Raiders",
-        "count": 1
+        "count": 1,
+        "years": [
+          2013
+        ]
       },
       {
         "ownerId": "m11",
         "managerName": "Quinn",
         "teamName": "Field Goal Fanatics",
-        "count": 1
+        "count": 1,
+        "years": [
+          2024
+        ]
       }
     ],
     "records": {

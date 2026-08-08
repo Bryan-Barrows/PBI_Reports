@@ -24,7 +24,7 @@
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { computeAggregates } from "./lib/aggregate.mjs";
+import { computeAggregates, computeWeekAwards } from "./lib/aggregate.mjs";
 import { loadManagerMap, resolveBySleeperIdentity } from "./lib/manager-map.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -124,6 +124,63 @@ async function fetchGames(leagueId, rosterMeta, playoffWeekStart) {
   return games;
 }
 
+// Sleeper's full NFL player directory (~5MB, every player who's ever been
+// rostered). There's no per-player lookup endpoint, so resolving even one
+// player's name requires fetching this whole thing. Sleeper's docs ask that
+// it not be called more than once a day — fine here since we only call it
+// once per script run, and the scheduled Action runs at most a few times/day.
+async function fetchPlayersDict() {
+  try {
+    return await sleeperGet("/players/nfl");
+  } catch (err) {
+    console.warn(`  Failed to fetch the NFL players directory (top-player award will be skipped): ${err.message}`);
+    return null;
+  }
+}
+
+// Finds the single highest-scoring starter league-wide for one week, for the
+// "top player performance" weekly award. Uses each matchup's starters/
+// starters_points arrays (index-aligned) rather than players_points, since
+// that's specifically the starting lineup rather than the whole bench.
+async function fetchTopPlayerPerformance(leagueId, week, rosterMeta, playersById) {
+  if (!playersById) return null;
+  let matchups;
+  try {
+    matchups = await sleeperGet(`/league/${leagueId}/matchups/${week}`);
+  } catch (err) {
+    console.warn(`  Failed to fetch matchups for the top-player award (week ${week}): ${err.message}`);
+    return null;
+  }
+  if (!matchups || matchups.length === 0) return null;
+
+  let best = null;
+  for (const m of matchups) {
+    const starters = m.starters || [];
+    const starterPoints = m.starters_points || [];
+    const meta = rosterMeta.get(m.roster_id);
+    starters.forEach((playerId, i) => {
+      if (!playerId || playerId === "0") return; // empty roster slot
+      const points = starterPoints[i];
+      if (typeof points !== "number") return;
+      if (!best || points > best.points) {
+        const player = playersById[playerId];
+        const playerName =
+          player?.full_name || `${player?.first_name || ""} ${player?.last_name || ""}`.trim() || `Player ${playerId}`;
+        best = {
+          playerId,
+          playerName,
+          position: player?.position || null,
+          nflTeam: player?.team || null,
+          points: Number(points.toFixed(2)),
+          fantasyTeamName: meta?.teamName ?? "Unknown",
+          fantasyOwnerId: meta?.ownerId ?? null,
+        };
+      }
+    });
+  }
+  return best;
+}
+
 async function fetchSeason(leagueId, managerMap) {
   const league = await sleeperGet(`/league/${leagueId}`);
   if (!league) return null;
@@ -188,7 +245,7 @@ async function fetchSeason(leagueId, managerMap) {
   const playoffWeekStart = league.settings?.playoff_week_start || null;
   const games = await fetchGames(leagueId, rosterMeta, playoffWeekStart);
 
-  return {
+  const season = {
     year: Number(league.season),
     leagueId,
     status: league.status, // 'pre_draft' | 'drafting' | 'in_season' | 'complete'
@@ -208,6 +265,11 @@ async function fetchSeason(leagueId, managerMap) {
     },
     previousLeagueId: league.previous_league_id || null,
   };
+
+  // rosterMeta is returned alongside (not persisted as part of the season
+  // object itself) so main() can reuse it for the current league's weekly
+  // awards without a redundant users/rosters fetch.
+  return { season, rosterMeta };
 }
 
 async function main() {
@@ -234,23 +296,26 @@ async function main() {
   console.log(`Starting from league ${startLeagueId}, walking history backward...`);
 
   const seasons = [];
+  let currentRosterMeta = null; // rosterMeta for startLeagueId specifically, captured below
   let cursor = startLeagueId;
   const seen = new Set();
 
   while (cursor && !seen.has(cursor)) {
     seen.add(cursor);
     console.log(`Fetching season for league ${cursor}...`);
-    let season;
+    let result;
     try {
-      season = await fetchSeason(cursor, managerMap);
+      result = await fetchSeason(cursor, managerMap);
     } catch (err) {
       console.error(`  Failed to fetch league ${cursor}: ${err.message}. Stopping walk here.`);
       break;
     }
-    if (!season) {
+    if (!result) {
       console.warn(`  League ${cursor} not found. Stopping walk here.`);
       break;
     }
+    const { season, rosterMeta } = result;
+    if (cursor === startLeagueId) currentRosterMeta = rosterMeta;
     console.log(`  Season ${season.year}: ${season.standings.length} teams, ${season.games.length} games found.`);
     seasons.push(season);
     cursor = season.previousLeagueId;
@@ -280,6 +345,26 @@ async function main() {
   const currentSeason = seasons.find((s) => s.leagueId === startLeagueId);
   const logoPath = await downloadLeagueLogo(currentSeason?.avatar);
 
+  // Weekly awards (most/fewest points, biggest margin, top individual
+  // player performance) for the most recently completed week of the
+  // current season. Never fatal if any part of this fails — we just fall
+  // back to whatever was there before, so a bad week doesn't blank the
+  // homepage section that only meaningfully changes once a week anyway.
+  let weeklyAwards = null;
+  if (currentSeason && currentSeason.games.length > 0 && currentRosterMeta) {
+    try {
+      const latestWeek = Math.max(...currentSeason.games.map((g) => g.week));
+      const teamAwards = computeWeekAwards(currentSeason.games, latestWeek);
+      if (teamAwards) {
+        const playersById = await fetchPlayersDict();
+        const topPlayer = await fetchTopPlayerPerformance(startLeagueId, latestWeek, currentRosterMeta, playersById);
+        weeklyAwards = { year: currentSeason.year, ...teamAwards, topPlayer };
+      }
+    } catch (err) {
+      console.warn(`  Failed to compute weekly awards: ${err.message}`);
+    }
+  }
+
   const output = {
     leagueName: existing.leagueName || "Fantasy Football League",
     platform: "sleeper",
@@ -289,6 +374,7 @@ async function main() {
     seasons: allSeasons,
     constitutionText: existing.constitutionText || null,
     logoPath: logoPath || existing.logoPath || null,
+    weeklyAwards: weeklyAwards || existing.weeklyAwards || null,
     allTime,
     notes: existing.notes || [],
   };
