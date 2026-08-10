@@ -3,7 +3,7 @@
   "platform": "sleeper",
   "currentLeagueId": "1378040940861607936",
   "isSampleData": false,
-  "lastUpdated": "2026-08-10T21:31:44.229Z",
+  "lastUpdated": "2026-08-10T21:58:13.276Z",
   "seasons": [
     {
       "year": 2026,
@@ -19526,7 +19526,6 @@
       "previousLeagueId": null
     }
   ],
-  "constitutionText": null,
   "constitutionUpdates": null,
   "logoPath": null,
   "weeklyAwards": null,
