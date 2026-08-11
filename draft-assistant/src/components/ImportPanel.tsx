@@ -2,17 +2,48 @@
 
 import { useRef, useState } from "react";
 import { useAppStore } from "@/lib/store";
-import { applyMapping, guessMapping, parseTable, type ColumnMapping } from "@/lib/csv";
+import { applyMapping, guessMapping, parseTable } from "@/lib/csv";
 import { readFileAsText } from "@/lib/download";
 import type { RankingSource, SourceKind } from "@/lib/types";
 
-const FIELD_LABELS: { key: keyof ColumnMapping; label: string; required: boolean }[] = [
+interface IdentityMapping {
+  name: number | null;
+  team: number | null;
+  position: number | null;
+  bye: number | null;
+}
+
+const IDENTITY_FIELDS: {
+  key: keyof IdentityMapping;
+  label: string;
+  required: boolean;
+}[] = [
   { key: "name", label: "Player name", required: true },
   { key: "team", label: "Team", required: false },
   { key: "position", label: "Position", required: false },
   { key: "bye", label: "Bye week", required: false },
-  { key: "value", label: "Rank / ADP value", required: false },
 ];
+
+// One entry per ranking/ADP column the pasted table contains — lets one
+// combined table (e.g. your own master sheet with a column per site) become
+// several sources in a single import instead of one paste per source.
+interface SourceColumn {
+  key: string;
+  columnIndex: number | null; // null = use row order
+  label: string;
+  kind: SourceKind;
+}
+
+interface SourceResult {
+  label: string;
+  added: number;
+  merged: number;
+  fuzzyMerged: { name: string; matchedTo: string }[];
+}
+
+function randomId() {
+  return Math.random().toString(36).slice(2);
+}
 
 export function ImportPanel({
   boardId,
@@ -28,23 +59,37 @@ export function ImportPanel({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isUpdate = !!existingSource;
 
-  const [sourceName, setSourceName] = useState(existingSource?.name ?? "");
-  const [kind, setKind] = useState<SourceKind>(existingSource?.kind ?? "rank");
   const [rawText, setRawText] = useState("");
   const [table, setTable] = useState<ReturnType<typeof parseTable> | null>(null);
-  const [mapping, setMapping] = useState<ColumnMapping | null>(null);
-  const [result, setResult] = useState<{
-    added: number;
-    merged: number;
-    fuzzyMerged: { name: string; matchedTo: string }[];
-  } | null>(null);
+  const [identity, setIdentity] = useState<IdentityMapping>({
+    name: null,
+    team: null,
+    position: null,
+    bye: null,
+  });
+  const [updateValueColumn, setUpdateValueColumn] = useState<number | null>(null);
+  const [sourceColumns, setSourceColumns] = useState<SourceColumn[]>([]);
+  const [results, setResults] = useState<SourceResult[] | null>(null);
 
   function parse(text: string) {
     setRawText(text);
     const t = parseTable(text);
+    const guess = guessMapping(t.headers);
     setTable(t);
-    setMapping(guessMapping(t.headers));
-    setResult(null);
+    setIdentity({
+      name: guess.name,
+      team: guess.team,
+      position: guess.position,
+      bye: guess.bye,
+    });
+    if (isUpdate) {
+      setUpdateValueColumn(guess.value);
+    } else {
+      setSourceColumns([
+        { key: randomId(), columnIndex: guess.value, label: "", kind: "rank" },
+      ]);
+    }
+    setResults(null);
   }
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -55,19 +100,48 @@ export function ImportPanel({
     e.target.value = "";
   }
 
-  function handleConfirm() {
-    if (!table || !mapping) return;
-    const rows = applyMapping(table, mapping);
-    const res =
-      isUpdate && existingSource
-        ? updateSource(boardId, existingSource.id, rows)
-        : importSource(boardId, sourceName.trim(), kind, rows);
-    setResult({
-      added: res.added,
-      merged: res.merged,
-      fuzzyMerged: res.fuzzyMerged,
-    });
+  function resetToStart() {
+    setTable(null);
+    setRawText("");
+    setSourceColumns([]);
+    setResults(null);
   }
+
+  function handleConfirm() {
+    if (!table) return;
+    const base = identity;
+
+    if (isUpdate && existingSource) {
+      const rows = applyMapping(table, { ...base, value: updateValueColumn });
+      const res = updateSource(boardId, existingSource.id, rows);
+      setResults([
+        {
+          label: existingSource.name,
+          added: res.added,
+          merged: res.merged,
+          fuzzyMerged: res.fuzzyMerged,
+        },
+      ]);
+      return;
+    }
+
+    const valid = sourceColumns.filter((sc) => sc.label.trim());
+    const collected: SourceResult[] = valid.map((sc) => {
+      const rows = applyMapping(table, { ...base, value: sc.columnIndex });
+      const res = importSource(boardId, sc.label.trim(), sc.kind, rows);
+      return {
+        label: sc.label.trim(),
+        added: res.added,
+        merged: res.merged,
+        fuzzyMerged: res.fuzzyMerged,
+      };
+    });
+    setResults(collected);
+  }
+
+  const canConfirm = isUpdate
+    ? true
+    : identity.name !== null && sourceColumns.some((sc) => sc.label.trim());
 
   return (
     <div className="mb-6 rounded-xl border border-zinc-200 p-5 dark:border-zinc-800">
@@ -75,60 +149,63 @@ export function ImportPanel({
         <h3 className="font-medium">
           {isUpdate ? `Update "${existingSource?.name}"` : "Import rankings"}
         </h3>
-        <button
-          onClick={onClose}
-          className="text-sm text-zinc-500 hover:underline"
-        >
+        <button onClick={onClose} className="text-sm text-zinc-500 hover:underline">
           Close
         </button>
       </div>
-      {isUpdate && !result && (
+      {isUpdate && !results && (
         <p className="mb-3 text-xs text-zinc-500">
           Paste or upload the refreshed table below. It replaces this
-          source&rsquo;s values only — other sources, tags, and drafted
-          status are untouched, and no player rows are deleted.
+          source&rsquo;s values only — other sources, tags, and drafted status
+          are untouched, and no player rows are deleted.
+        </p>
+      )}
+      {!isUpdate && !table && (
+        <p className="mb-3 text-xs text-zinc-500">
+          One table works for multiple sources — e.g. a sheet with a name
+          column plus a rank column per site. You&rsquo;ll pick which columns
+          are which source next.
         </p>
       )}
 
-      {result ? (
+      {results ? (
         <div className="text-sm">
-          <p className="text-emerald-600 dark:text-emerald-400">
-            {isUpdate ? "Updated" : "Imported"} {result.added} new player
-            {result.added === 1 ? "" : "s"}
-            {result.merged > 0
-              ? `, ${isUpdate ? "refreshed" : "merged into"} ${result.merged} existing player${
-                  result.merged === 1 ? "" : "s"
-                }`
-              : ""}
-            .
-          </p>
-          {result.fuzzyMerged.length > 0 && (
-            <div className="mt-2 rounded-md bg-amber-50 p-3 text-xs text-amber-800 dark:bg-amber-950 dark:text-amber-300">
-              <p className="mb-1 font-medium">
-                Fuzzy-matched (double-check these):
+          {results.map((r, i) => (
+            <div key={i} className="mb-2">
+              <p className="text-emerald-600 dark:text-emerald-400">
+                {results.length > 1 && <strong>{r.label}: </strong>}
+                {isUpdate ? "Updated" : "Imported"} {r.added} new player
+                {r.added === 1 ? "" : "s"}
+                {r.merged > 0
+                  ? `, ${isUpdate ? "refreshed" : "merged into"} ${r.merged} existing player${
+                      r.merged === 1 ? "" : "s"
+                    }`
+                  : ""}
+                .
               </p>
-              <ul className="list-inside list-disc">
-                {result.fuzzyMerged.map((f, i) => (
-                  <li key={i}>
-                    &ldquo;{f.name}&rdquo; matched to existing player &ldquo;
-                    {f.matchedTo}&rdquo;
-                  </li>
-                ))}
-              </ul>
+              {r.fuzzyMerged.length > 0 && (
+                <div className="mt-1 rounded-md bg-amber-50 p-3 text-xs text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                  <p className="mb-1 font-medium">
+                    Fuzzy-matched (double-check these):
+                  </p>
+                  <ul className="list-inside list-disc">
+                    {r.fuzzyMerged.map((f, j) => (
+                      <li key={j}>
+                        &ldquo;{f.name}&rdquo; matched to existing player
+                        &ldquo;{f.matchedTo}&rdquo;
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
-          )}
+          ))}
           <div className="mt-3 flex gap-2">
             <button
-              onClick={() => {
-                setTable(null);
-                setMapping(null);
-                setRawText("");
-                setSourceName(existingSource?.name ?? "");
-                setResult(null);
-              }}
+              onClick={resetToStart}
               className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
             >
-              {isUpdate ? "Paste again" : "Import another source"}
+              {isUpdate ? "Paste again" : "Import another table"}
             </button>
             <button
               onClick={onClose}
@@ -140,42 +217,19 @@ export function ImportPanel({
         </div>
       ) : !table ? (
         <div className="flex flex-col gap-3">
-          {isUpdate ? (
+          {isUpdate && (
             <p className="text-sm text-zinc-500">
               Source:{" "}
               <span className="font-medium text-zinc-900 dark:text-zinc-100">
                 {existingSource?.name}
               </span>{" "}
-              ({kind === "adp" ? "ADP" : "ranking"})
+              ({existingSource?.kind === "adp" ? "ADP" : "ranking"})
             </p>
-          ) : (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <label className="flex flex-col gap-1 text-sm">
-                Source label
-                <input
-                  value={sourceName}
-                  onChange={(e) => setSourceName(e.target.value)}
-                  placeholder="e.g. FantasyPros ECR, Draft Sharks, Sleeper ADP"
-                  className="rounded-md border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
-                />
-              </label>
-              <label className="flex flex-col gap-1 text-sm">
-                Type
-                <select
-                  value={kind}
-                  onChange={(e) => setKind(e.target.value as SourceKind)}
-                  className="rounded-md border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
-                >
-                  <option value="rank">Ranking (lower = better)</option>
-                  <option value="adp">ADP (average draft position)</option>
-                </select>
-              </label>
-            </div>
           )}
           <textarea
             value={rawText}
             onChange={(e) => parse(e.target.value)}
-            placeholder="Paste a table copied from a rankings site here (name, team, position, rank/ADP columns)…"
+            placeholder="Paste a table copied from a rankings site (or your own sheet) here…"
             rows={6}
             className="rounded-md border border-zinc-300 px-3 py-2 font-mono text-xs dark:border-zinc-700 dark:bg-zinc-900"
           />
@@ -198,41 +252,156 @@ export function ImportPanel({
         </div>
       ) : (
         <div className="flex flex-col gap-4">
-          <p className="text-xs text-zinc-500">
-            Detected {table.rows.length} row(s). Match each column below (we
-            guessed based on the headers — double check before importing).
-          </p>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
-            {FIELD_LABELS.map(({ key, label, required }) => (
-              <label key={key} className="flex flex-col gap-1 text-sm">
-                {label}
-                {required ? "" : " (optional)"}
-                <select
-                  value={mapping?.[key] ?? ""}
-                  onChange={(e) =>
-                    setMapping((m) =>
-                      m
-                        ? {
-                            ...m,
-                            [key]: e.target.value === "" ? null : parseInt(e.target.value, 10),
-                          }
-                        : m
-                    )
-                  }
-                  className="rounded-md border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
-                >
-                  <option value="">
-                    {key === "value" ? "(use row order)" : "— none —"}
-                  </option>
-                  {table.headers.map((h, i) => (
-                    <option key={i} value={i}>
-                      {h || `Column ${i + 1}`}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ))}
+          <div>
+            <p className="mb-2 text-xs font-medium text-zinc-500">
+              Player identity columns
+            </p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
+              {IDENTITY_FIELDS.map(({ key, label, required }) => (
+                <label key={key} className="flex flex-col gap-1 text-sm">
+                  {label}
+                  {required ? "" : " (optional)"}
+                  <select
+                    value={identity[key] ?? ""}
+                    onChange={(e) =>
+                      setIdentity((m) => ({
+                        ...m,
+                        [key]: e.target.value === "" ? null : parseInt(e.target.value, 10),
+                      }))
+                    }
+                    className="rounded-md border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+                  >
+                    <option value="">— none —</option>
+                    {table.headers.map((h, i) => (
+                      <option key={i} value={i}>
+                        {h || `Column ${i + 1}`}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ))}
+            </div>
           </div>
+
+          {isUpdate ? (
+            <label className="flex max-w-xs flex-col gap-1 text-sm">
+              Rank / ADP value column
+              <select
+                value={updateValueColumn ?? ""}
+                onChange={(e) =>
+                  setUpdateValueColumn(
+                    e.target.value === "" ? null : parseInt(e.target.value, 10)
+                  )
+                }
+                className="rounded-md border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+              >
+                <option value="">(use row order)</option>
+                {table.headers.map((h, i) => (
+                  <option key={i} value={i}>
+                    {h || `Column ${i + 1}`}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : (
+            <div>
+              <p className="mb-2 text-xs font-medium text-zinc-500">
+                Ranking / ADP columns — one per source
+              </p>
+              <div className="flex flex-col gap-2">
+                {sourceColumns.map((sc) => (
+                  <div
+                    key={sc.key}
+                    className="grid grid-cols-1 gap-2 rounded-md border border-zinc-200 p-3 sm:grid-cols-[1fr_1fr_auto_auto] sm:items-end dark:border-zinc-800"
+                  >
+                    <label className="flex flex-col gap-1 text-sm">
+                      Column
+                      <select
+                        value={sc.columnIndex ?? ""}
+                        onChange={(e) =>
+                          setSourceColumns((list) =>
+                            list.map((x) =>
+                              x.key === sc.key
+                                ? {
+                                    ...x,
+                                    columnIndex:
+                                      e.target.value === ""
+                                        ? null
+                                        : parseInt(e.target.value, 10),
+                                  }
+                                : x
+                            )
+                          )
+                        }
+                        className="rounded-md border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+                      >
+                        <option value="">(use row order)</option>
+                        {table.headers.map((h, i) => (
+                          <option key={i} value={i}>
+                            {h || `Column ${i + 1}`}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="flex flex-col gap-1 text-sm">
+                      Source label
+                      <input
+                        value={sc.label}
+                        onChange={(e) =>
+                          setSourceColumns((list) =>
+                            list.map((x) =>
+                              x.key === sc.key ? { ...x, label: e.target.value } : x
+                            )
+                          )
+                        }
+                        placeholder="e.g. FantasyPros ECR"
+                        className="rounded-md border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1 text-sm">
+                      Type
+                      <select
+                        value={sc.kind}
+                        onChange={(e) =>
+                          setSourceColumns((list) =>
+                            list.map((x) =>
+                              x.key === sc.key
+                                ? { ...x, kind: e.target.value as SourceKind }
+                                : x
+                            )
+                          )
+                        }
+                        className="rounded-md border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+                      >
+                        <option value="rank">Rank</option>
+                        <option value="adp">ADP</option>
+                      </select>
+                    </label>
+                    <button
+                      onClick={() =>
+                        setSourceColumns((list) => list.filter((x) => x.key !== sc.key))
+                      }
+                      className="rounded-md px-2 py-2 text-sm text-zinc-400 hover:text-red-500"
+                      title="Remove this source column"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <button
+                onClick={() =>
+                  setSourceColumns((list) => [
+                    ...list,
+                    { key: randomId(), columnIndex: null, label: "", kind: "rank" },
+                  ])
+                }
+                className="mt-2 rounded-md border border-dashed border-zinc-300 px-3 py-1.5 text-xs text-zinc-500 hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
+              >
+                + Add another ranking/ADP column
+              </button>
+            </div>
+          )}
 
           <div className="overflow-x-auto rounded-md border border-zinc-200 dark:border-zinc-800">
             <table className="w-full text-xs">
@@ -262,24 +431,27 @@ export function ImportPanel({
           <div className="flex gap-2">
             <button
               onClick={handleConfirm}
-              disabled={!isUpdate && (!sourceName.trim() || mapping?.name === null)}
+              disabled={!canConfirm}
               className="rounded-md bg-zinc-900 px-4 py-2 text-sm text-white hover:bg-zinc-700 disabled:opacity-40 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200"
             >
-              {isUpdate ? "Update" : "Import"} {table.rows.length} players
+              {isUpdate
+                ? `Update ${table.rows.length} players`
+                : `Import ${table.rows.length} players into ${
+                    sourceColumns.filter((sc) => sc.label.trim()).length
+                  } source${sourceColumns.filter((sc) => sc.label.trim()).length === 1 ? "" : "s"}`}
             </button>
             <button
-              onClick={() => {
-                setTable(null);
-                setMapping(null);
-              }}
+              onClick={() => setTable(null)}
               className="rounded-md px-4 py-2 text-sm text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-900"
             >
               Back
             </button>
           </div>
-          {!isUpdate && !sourceName.trim() && (
+          {!canConfirm && (
             <p className="text-xs text-amber-600">
-              Give this source a label above before importing.
+              {identity.name === null
+                ? "Map the player name column above."
+                : "Give at least one ranking/ADP column a label before importing."}
             </p>
           )}
         </div>
