@@ -28,7 +28,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           mkdir -p assets
-          git add data/league-data.json assets/
+          git add data/league-data.json data/manager-map.json assets/
           if git diff --cached --quiet; then
             echo "No data changes."
           else
