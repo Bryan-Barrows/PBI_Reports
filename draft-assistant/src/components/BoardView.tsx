@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useAppStore } from "@/lib/store";
-import type { Board } from "@/lib/types";
+import type { Board, RankingSource } from "@/lib/types";
 import { ImportPanel } from "./ImportPanel";
 import { PlayerTable } from "./PlayerTable";
 import { downloadTextFile } from "@/lib/download";
@@ -15,7 +15,9 @@ export function BoardView({ board }: { board: Board }) {
   const exportBoard = useAppStore((s) => s.exportBoard);
   const renameBoard = useAppStore((s) => s.renameBoard);
 
-  const [showImport, setShowImport] = useState(board.sources.length === 0);
+  const [importTarget, setImportTarget] = useState<
+    "new" | RankingSource | null
+  >(board.sources.length === 0 ? "new" : null);
 
   return (
     <div className="mx-auto w-full max-w-6xl flex-1 px-6 py-8">
@@ -101,25 +103,39 @@ export function BoardView({ board }: { board: Board }) {
               ({s.kind === "adp" ? "ADP" : "rank"})
             </span>
             <button
+              onClick={() => setImportTarget(s)}
+              className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-100"
+              title="Update this source's values"
+            >
+              ↻
+            </button>
+            <button
               onClick={() => {
-                if (confirm(`Remove source "${s.name}"?`)) removeSource(board.id, s.id);
+                if (confirm(`Remove source "${s.name}"? Player rows are kept — this only clears their values for this source.`)) {
+                  removeSource(board.id, s.id);
+                }
               }}
               className="text-zinc-400 hover:text-red-500"
+              title="Remove this source"
             >
               ×
             </button>
           </span>
         ))}
         <button
-          onClick={() => setShowImport((v) => !v)}
+          onClick={() => setImportTarget((v) => (v ? null : "new"))}
           className="rounded-full border border-dashed border-zinc-300 px-3 py-1 text-xs text-zinc-500 hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
         >
           + Add rankings source
         </button>
       </div>
 
-      {showImport && (
-        <ImportPanel boardId={board.id} onClose={() => setShowImport(false)} />
+      {importTarget && (
+        <ImportPanel
+          boardId={board.id}
+          existingSource={importTarget === "new" ? undefined : importTarget}
+          onClose={() => setImportTarget(null)}
+        />
       )}
 
       <PlayerTable board={board} />

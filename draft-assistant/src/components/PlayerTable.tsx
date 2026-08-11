@@ -52,9 +52,6 @@ export function PlayerTable({ board }: { board: Board }) {
     }
 
     list.sort((a, b) => {
-      if (a.player.drafted !== b.player.drafted) {
-        return a.player.drafted ? 1 : -1;
-      }
       if (sortKey === "name") return a.player.name.localeCompare(b.player.name);
       const key = sortKey === "adp" ? "adp" : "consensusRank";
       const av = a[key];
@@ -146,13 +143,13 @@ export function PlayerTable({ board }: { board: Board }) {
               <th className="px-3 py-2">Pos</th>
               <th className="px-3 py-2">Team</th>
               <th className="px-3 py-2">Bye</th>
+              <th className="px-3 py-2">ADP</th>
+              <th className="px-3 py-2">Consensus</th>
               {board.sources.map((s) => (
                 <th key={s.id} className="px-3 py-2 whitespace-nowrap">
                   {s.name}
                 </th>
               ))}
-              <th className="px-3 py-2">Consensus</th>
-              <th className="px-3 py-2">ADP</th>
               <th className="px-3 py-2">Tag</th>
               <th className="px-3 py-2">Drafted</th>
             </tr>
@@ -223,6 +220,12 @@ function PlayerRow({
       <td className="px-3 py-2 text-zinc-500">{player.position}</td>
       <td className="px-3 py-2 text-zinc-500">{player.team || "—"}</td>
       <td className="px-3 py-2 text-zinc-500">{player.bye ?? "—"}</td>
+      <td className="px-3 py-2 font-medium">
+        {adp !== null ? adp.toFixed(1) : "—"}
+      </td>
+      <td className="px-3 py-2 font-medium">
+        {consensusRank !== null ? consensusRank.toFixed(1) : "—"}
+      </td>
       {sources.map((s) => {
         const v = player.values.find((val) => val.sourceId === s.id);
         return (
@@ -231,12 +234,6 @@ function PlayerRow({
           </td>
         );
       })}
-      <td className="px-3 py-2 font-medium">
-        {consensusRank !== null ? consensusRank.toFixed(1) : "—"}
-      </td>
-      <td className="px-3 py-2 font-medium">
-        {adp !== null ? adp.toFixed(1) : "—"}
-      </td>
       <td className="px-3 py-2">
         <div className="flex gap-1">
           {(Object.keys(TAG_META) as Tag[]).map((t) => (

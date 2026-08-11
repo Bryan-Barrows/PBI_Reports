@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { useAppStore } from "@/lib/store";
 import { applyMapping, guessMapping, parseTable, type ColumnMapping } from "@/lib/csv";
 import { readFileAsText } from "@/lib/download";
-import type { SourceKind } from "@/lib/types";
+import type { RankingSource, SourceKind } from "@/lib/types";
 
 const FIELD_LABELS: { key: keyof ColumnMapping; label: string; required: boolean }[] = [
   { key: "name", label: "Player name", required: true },
@@ -16,16 +16,20 @@ const FIELD_LABELS: { key: keyof ColumnMapping; label: string; required: boolean
 
 export function ImportPanel({
   boardId,
+  existingSource,
   onClose,
 }: {
   boardId: string;
+  existingSource?: RankingSource;
   onClose: () => void;
 }) {
   const importSource = useAppStore((s) => s.importSource);
+  const updateSource = useAppStore((s) => s.updateSource);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isUpdate = !!existingSource;
 
-  const [sourceName, setSourceName] = useState("");
-  const [kind, setKind] = useState<SourceKind>("rank");
+  const [sourceName, setSourceName] = useState(existingSource?.name ?? "");
+  const [kind, setKind] = useState<SourceKind>(existingSource?.kind ?? "rank");
   const [rawText, setRawText] = useState("");
   const [table, setTable] = useState<ReturnType<typeof parseTable> | null>(null);
   const [mapping, setMapping] = useState<ColumnMapping | null>(null);
@@ -52,9 +56,12 @@ export function ImportPanel({
   }
 
   function handleConfirm() {
-    if (!table || !mapping || !sourceName.trim()) return;
+    if (!table || !mapping) return;
     const rows = applyMapping(table, mapping);
-    const res = importSource(boardId, sourceName.trim(), kind, rows);
+    const res =
+      isUpdate && existingSource
+        ? updateSource(boardId, existingSource.id, rows)
+        : importSource(boardId, sourceName.trim(), kind, rows);
     setResult({
       added: res.added,
       merged: res.merged,
@@ -65,7 +72,9 @@ export function ImportPanel({
   return (
     <div className="mb-6 rounded-xl border border-zinc-200 p-5 dark:border-zinc-800">
       <div className="mb-3 flex items-center justify-between">
-        <h3 className="font-medium">Import rankings</h3>
+        <h3 className="font-medium">
+          {isUpdate ? `Update "${existingSource?.name}"` : "Import rankings"}
+        </h3>
         <button
           onClick={onClose}
           className="text-sm text-zinc-500 hover:underline"
@@ -73,13 +82,21 @@ export function ImportPanel({
           Close
         </button>
       </div>
+      {isUpdate && !result && (
+        <p className="mb-3 text-xs text-zinc-500">
+          Paste or upload the refreshed table below. It replaces this
+          source&rsquo;s values only — other sources, tags, and drafted
+          status are untouched, and no player rows are deleted.
+        </p>
+      )}
 
       {result ? (
         <div className="text-sm">
           <p className="text-emerald-600 dark:text-emerald-400">
-            Imported {result.added} new player{result.added === 1 ? "" : "s"}
+            {isUpdate ? "Updated" : "Imported"} {result.added} new player
+            {result.added === 1 ? "" : "s"}
             {result.merged > 0
-              ? `, merged into ${result.merged} existing player${
+              ? `, ${isUpdate ? "refreshed" : "merged into"} ${result.merged} existing player${
                   result.merged === 1 ? "" : "s"
                 }`
               : ""}
@@ -106,12 +123,12 @@ export function ImportPanel({
                 setTable(null);
                 setMapping(null);
                 setRawText("");
-                setSourceName("");
+                setSourceName(existingSource?.name ?? "");
                 setResult(null);
               }}
               className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
             >
-              Import another source
+              {isUpdate ? "Paste again" : "Import another source"}
             </button>
             <button
               onClick={onClose}
@@ -123,28 +140,38 @@ export function ImportPanel({
         </div>
       ) : !table ? (
         <div className="flex flex-col gap-3">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <label className="flex flex-col gap-1 text-sm">
-              Source label
-              <input
-                value={sourceName}
-                onChange={(e) => setSourceName(e.target.value)}
-                placeholder="e.g. FantasyPros ECR, Draft Sharks, Sleeper ADP"
-                className="rounded-md border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
-              />
-            </label>
-            <label className="flex flex-col gap-1 text-sm">
-              Type
-              <select
-                value={kind}
-                onChange={(e) => setKind(e.target.value as SourceKind)}
-                className="rounded-md border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
-              >
-                <option value="rank">Ranking (lower = better)</option>
-                <option value="adp">ADP (average draft position)</option>
-              </select>
-            </label>
-          </div>
+          {isUpdate ? (
+            <p className="text-sm text-zinc-500">
+              Source:{" "}
+              <span className="font-medium text-zinc-900 dark:text-zinc-100">
+                {existingSource?.name}
+              </span>{" "}
+              ({kind === "adp" ? "ADP" : "ranking"})
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <label className="flex flex-col gap-1 text-sm">
+                Source label
+                <input
+                  value={sourceName}
+                  onChange={(e) => setSourceName(e.target.value)}
+                  placeholder="e.g. FantasyPros ECR, Draft Sharks, Sleeper ADP"
+                  className="rounded-md border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-sm">
+                Type
+                <select
+                  value={kind}
+                  onChange={(e) => setKind(e.target.value as SourceKind)}
+                  className="rounded-md border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+                >
+                  <option value="rank">Ranking (lower = better)</option>
+                  <option value="adp">ADP (average draft position)</option>
+                </select>
+              </label>
+            </div>
+          )}
           <textarea
             value={rawText}
             onChange={(e) => parse(e.target.value)}
@@ -235,10 +262,10 @@ export function ImportPanel({
           <div className="flex gap-2">
             <button
               onClick={handleConfirm}
-              disabled={!sourceName.trim() || mapping?.name === null}
+              disabled={!isUpdate && (!sourceName.trim() || mapping?.name === null)}
               className="rounded-md bg-zinc-900 px-4 py-2 text-sm text-white hover:bg-zinc-700 disabled:opacity-40 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200"
             >
-              Import {table.rows.length} players
+              {isUpdate ? "Update" : "Import"} {table.rows.length} players
             </button>
             <button
               onClick={() => {
@@ -250,7 +277,7 @@ export function ImportPanel({
               Back
             </button>
           </div>
-          {!sourceName.trim() && (
+          {!isUpdate && !sourceName.trim() && (
             <p className="text-xs text-amber-600">
               Give this source a label above before importing.
             </p>

@@ -36,6 +36,11 @@ interface AppState {
     kind: SourceKind,
     rows: ImportRow[]
   ) => MergeResult;
+  updateSource: (
+    boardId: string,
+    sourceId: string,
+    rows: ImportRow[]
+  ) => MergeResult;
   removeSource: (boardId: string, sourceId: string) => void;
 
   setTag: (matchKey: string, tag: Tag | null) => void;
@@ -172,6 +177,47 @@ export const useAppStore = create<AppState>()(
         return result;
       },
 
+      // Re-imports fresh rows into an existing source (same id, name, kind),
+      // replacing its previous values wholesale. Unlike removeSource, this
+      // never drops a player row — a player who no longer appears in the
+      // refreshed list just shows "—" for this source, keeping their tags,
+      // drafted status, and other sources' values intact.
+      updateSource: (boardId, sourceId, rows) => {
+        const board = get().boards.find((b) => b.id === boardId);
+        const existingSource = board?.sources.find((s) => s.id === sourceId);
+        if (!board || !existingSource) {
+          return { players: [], added: 0, merged: 0, fuzzyMerged: [] };
+        }
+        const stripped = board.players.map((p) => ({
+          ...p,
+          values: p.values.filter((v) => v.sourceId !== sourceId),
+        }));
+        const result = mergeRowsIntoPlayers(stripped, rows, sourceId);
+        set((state) => ({
+          boards: state.boards.map((b) =>
+            b.id === boardId
+              ? {
+                  ...b,
+                  players: result.players,
+                  sources: b.sources.map((s) =>
+                    s.id === sourceId
+                      ? {
+                          ...s,
+                          importedAt: new Date().toISOString(),
+                          columnCount: rows.length,
+                        }
+                      : s
+                  ),
+                }
+              : b
+          ),
+        }));
+        return result;
+      },
+
+      // Removing a source only strips its values from players — it never
+      // deletes a player row, even if that leaves them with zero remaining
+      // source values, so drafted/tagged state is never silently lost.
       removeSource: (boardId, sourceId) => {
         set((state) => ({
           boards: state.boards.map((b) =>
@@ -179,12 +225,10 @@ export const useAppStore = create<AppState>()(
               ? {
                   ...b,
                   sources: b.sources.filter((s) => s.id !== sourceId),
-                  players: b.players
-                    .map((p) => ({
-                      ...p,
-                      values: p.values.filter((v) => v.sourceId !== sourceId),
-                    }))
-                    .filter((p) => p.values.length > 0),
+                  players: b.players.map((p) => ({
+                    ...p,
+                    values: p.values.filter((v) => v.sourceId !== sourceId),
+                  })),
                 }
               : b
           ),
