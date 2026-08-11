@@ -26,6 +26,12 @@ export function PlayerTable({ board }: { board: Board }) {
   const [hideDrafted, setHideDrafted] = useState(false);
   const [autoAdvance, setAutoAdvance] = useState(true);
   const [sortKey, setSortKey] = useState<SortKey>("consensus");
+  const [requireAllRankSources, setRequireAllRankSources] = useState(true);
+
+  const rankSourceIds = useMemo(
+    () => board.sources.filter((s) => s.kind === "rank").map((s) => s.id),
+    [board.sources]
+  );
 
   const rows = useMemo(() => {
     let list = board.players.map((p) => {
@@ -50,6 +56,14 @@ export function PlayerTable({ board }: { board: Board }) {
     if (hideDrafted) {
       list = list.filter((r) => !r.player.drafted);
     }
+    // Only show players ranked by every current rank-type source — e.g. if
+    // you track 4 sites, a player missing from even one is left off, even
+    // if they showed up in an ADP-only file.
+    if (requireAllRankSources && rankSourceIds.length > 0) {
+      list = list.filter((r) =>
+        rankSourceIds.every((id) => r.player.values.some((v) => v.sourceId === id))
+      );
+    }
 
     list.sort((a, b) => {
       if (sortKey === "name") return a.player.name.localeCompare(b.player.name);
@@ -63,7 +77,17 @@ export function PlayerTable({ board }: { board: Board }) {
     });
 
     return list;
-  }, [board, globalTags, search, position, tagFilter, hideDrafted, sortKey]);
+  }, [
+    board,
+    globalTags,
+    search,
+    position,
+    tagFilter,
+    hideDrafted,
+    sortKey,
+    requireAllRankSources,
+    rankSourceIds,
+  ]);
 
   return (
     <div>
@@ -114,6 +138,17 @@ export function PlayerTable({ board }: { board: Board }) {
             onChange={(e) => setHideDrafted(e.target.checked)}
           />
           Hide drafted
+        </label>
+        <label
+          className="flex items-center gap-1.5 text-sm text-zinc-600 dark:text-zinc-400"
+          title="Hides any player missing a rank from one or more of your rank-type sources, regardless of ADP data"
+        >
+          <input
+            type="checkbox"
+            checked={requireAllRankSources}
+            onChange={(e) => setRequireAllRankSources(e.target.checked)}
+          />
+          Only players ranked by all sources
         </label>
         <label className="flex items-center gap-1.5 text-sm text-zinc-600 dark:text-zinc-400">
           <input
