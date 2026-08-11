@@ -88,13 +88,13 @@
     const table = el("table", { class: "h2h-table" });
     const headRow = el("tr", {}, [
       el("th", {}, ""),
-      ...standings.map((s) => el("th", {}, managerLink(s.ownerId, initials(s.teamName)))),
+      ...standings.map((s) => el("th", { title: s.teamName }, managerLink(s.ownerId, initials(s.teamName)))),
     ]);
     table.appendChild(el("thead", {}, [headRow]));
 
     const tbody = el("tbody");
     standings.forEach((rowOwner) => {
-      const cells = [el("td", {}, managerLink(rowOwner.ownerId, rowOwner.teamName))];
+      const cells = [el("td", { title: rowOwner.teamName }, managerLink(rowOwner.ownerId, initials(rowOwner.teamName)))];
       standings.forEach((colOwner) => {
         if (rowOwner.ownerId === colOwner.ownerId) {
           cells.push(el("td", { class: "h2h-diag" }, "—"));
