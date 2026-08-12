@@ -6,11 +6,36 @@ import type { Board, Player, Tag } from "@/lib/types";
 import { POSITIONS } from "@/lib/types";
 import { computeConsensusAndAdp, adpProximity } from "@/lib/derive";
 
-const TAG_META: Record<Tag, { label: string; emoji: string; active: string }> = {
-  love: { label: "Love", emoji: "❤️", active: "bg-rose-100 dark:bg-rose-950 ring-1 ring-rose-400" },
-  like: { label: "Like", emoji: "👍", active: "bg-emerald-100 dark:bg-emerald-950 ring-1 ring-emerald-400" },
-  maybe: { label: "Maybe", emoji: "🤔", active: "bg-amber-100 dark:bg-amber-950 ring-1 ring-amber-400" },
-  no: { label: "No", emoji: "🚫", active: "bg-zinc-200 dark:bg-zinc-800 ring-1 ring-zinc-400" },
+// `stripe` is a left-border accent, not a background fill, so it stacks
+// cleanly with the ADP-proximity row background instead of competing with it.
+const TAG_META: Record<
+  Tag,
+  { label: string; emoji: string; active: string; stripe: string }
+> = {
+  love: {
+    label: "Love",
+    emoji: "❤️",
+    active: "bg-rose-100 dark:bg-rose-950 ring-1 ring-rose-400",
+    stripe: "border-l-rose-500",
+  },
+  like: {
+    label: "Like",
+    emoji: "👍",
+    active: "bg-emerald-100 dark:bg-emerald-950 ring-1 ring-emerald-400",
+    stripe: "border-l-emerald-500",
+  },
+  maybe: {
+    label: "Maybe",
+    emoji: "🤔",
+    active: "bg-amber-100 dark:bg-amber-950 ring-1 ring-amber-400",
+    stripe: "border-l-amber-500",
+  },
+  no: {
+    label: "No",
+    emoji: "🚫",
+    active: "bg-zinc-200 dark:bg-zinc-800 ring-1 ring-zinc-400",
+    stripe: "border-l-zinc-400",
+  },
 };
 
 type SortKey = "consensus" | "adp" | "name";
@@ -248,17 +273,25 @@ function PlayerRow({
   onTag: (t: Tag) => void;
   onDraft: (drafted: boolean) => void;
 }) {
-  const rowClass = player.drafted
+  const bgClass = player.drafted
     ? "opacity-40 line-through"
     : proximity === "hot"
     ? "bg-rose-50 dark:bg-rose-950/40"
     : proximity === "warm"
     ? "bg-amber-50 dark:bg-amber-950/30"
     : "";
+  // Left-edge stripe is a border, independent of the background above, so a
+  // tagged player stays identifiable even on a red/yellow ADP-highlighted row.
+  const stripeClass = tag ? TAG_META[tag].stripe : "border-l-transparent";
 
   return (
-    <tr className={`border-t border-zinc-100 dark:border-zinc-800 ${rowClass}`}>
-      <td className="px-2 py-1.5 font-medium whitespace-nowrap">{player.name}</td>
+    <tr
+      className={`border-t border-t-zinc-100 dark:border-t-zinc-800 border-l-4 ${stripeClass} ${bgClass}`}
+    >
+      <td className="px-2 py-1.5 font-medium whitespace-nowrap">
+        {tag && <span title={TAG_META[tag].label}>{TAG_META[tag].emoji}</span>}{" "}
+        {player.name}
+      </td>
       <td className="px-2 py-1.5 text-zinc-500">{player.position}</td>
       <td className="px-2 py-1.5 text-zinc-500">{player.team || "—"}</td>
       <td className="px-2 py-1.5 text-zinc-500">{player.bye ?? "—"}</td>
