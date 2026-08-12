@@ -26,16 +26,16 @@ export function computeConsensusAndAdp(
   return { consensusRank: avg(rankValues), adp: avg(adpValues) };
 }
 
-// Highlight tier for how close a player's ADP is to the current overall pick.
-// "hot" = within 5 (great value likely gone soon / a reach if you wait),
-// "warm" = within 10.
+// Highlight tier for a player's ADP relative to the current overall pick.
+// "hot" = their ADP has already passed this pick (average drafters would
+// have taken them by now — a value sitting on the board, grab them).
+// "warm" = their ADP is coming up within the next 10 picks.
 export function adpProximity(
   adp: number | null,
   currentPick: number
 ): "hot" | "warm" | null {
   if (adp === null) return null;
-  const diff = Math.abs(adp - currentPick);
-  if (diff <= 5) return "hot";
-  if (diff <= 10) return "warm";
+  if (adp <= currentPick) return "hot";
+  if (adp - currentPick <= 10) return "warm";
   return null;
 }

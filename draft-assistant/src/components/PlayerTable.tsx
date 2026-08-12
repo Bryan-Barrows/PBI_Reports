@@ -28,9 +28,16 @@ export function PlayerTable({ board }: { board: Board }) {
   const [sortKey, setSortKey] = useState<SortKey>("consensus");
   const [requireAllRankSources, setRequireAllRankSources] = useState(true);
 
-  const rankSourceIds = useMemo(
-    () => board.sources.filter((s) => s.kind === "rank").map((s) => s.id),
+  // Only rank-type sources get their own column — an ADP-type source's
+  // values already surface in the dedicated ADP summary column, so showing
+  // them again as a named column is pure duplication.
+  const rankSources = useMemo(
+    () => board.sources.filter((s) => s.kind === "rank"),
     [board.sources]
+  );
+  const rankSourceIds = useMemo(
+    () => rankSources.map((s) => s.id),
+    [rankSources]
   );
 
   const rows = useMemo(() => {
@@ -161,11 +168,11 @@ export function PlayerTable({ board }: { board: Board }) {
         <span className="ml-auto flex items-center gap-3 text-xs text-zinc-500">
           <span className="flex items-center gap-1">
             <span className="h-3 w-3 rounded bg-rose-200 dark:bg-rose-900" /> ADP
-            within 5
+            passed this pick
           </span>
           <span className="flex items-center gap-1">
             <span className="h-3 w-3 rounded bg-amber-100 dark:bg-amber-950" /> ADP
-            within 10
+            within next 10
           </span>
         </span>
       </div>
@@ -174,19 +181,19 @@ export function PlayerTable({ board }: { board: Board }) {
         <table className="w-full text-sm">
           <thead className="bg-zinc-50 text-left text-xs uppercase tracking-wide text-zinc-500 dark:bg-zinc-900">
             <tr>
-              <th className="px-3 py-2">Player</th>
-              <th className="px-3 py-2">Pos</th>
-              <th className="px-3 py-2">Team</th>
-              <th className="px-3 py-2">Bye</th>
-              <th className="px-3 py-2">ADP</th>
-              <th className="px-3 py-2">Consensus</th>
-              {board.sources.map((s) => (
-                <th key={s.id} className="px-3 py-2 whitespace-nowrap">
+              <th className="px-2 py-1.5">Player</th>
+              <th className="px-2 py-1.5">Pos</th>
+              <th className="px-2 py-1.5">Team</th>
+              <th className="px-2 py-1.5">Bye</th>
+              <th className="px-2 py-1.5">ADP</th>
+              <th className="px-2 py-1.5">Consensus</th>
+              {rankSources.map((s) => (
+                <th key={s.id} className="px-2 py-1.5 whitespace-nowrap">
                   {s.name}
                 </th>
               ))}
-              <th className="px-3 py-2">Tag</th>
-              <th className="px-3 py-2">Drafted</th>
+              <th className="px-2 py-1.5">Tag</th>
+              <th className="px-2 py-1.5">Drafted</th>
             </tr>
           </thead>
           <tbody>
@@ -198,7 +205,7 @@ export function PlayerTable({ board }: { board: Board }) {
                 adp={adp}
                 tag={tag}
                 proximity={proximity}
-                sources={board.sources}
+                sources={rankSources}
                 onTag={(t) => setTag(player.matchKey, tag === t ? null : t)}
                 onDraft={(drafted) =>
                   setDrafted(board.id, player.id, drafted, autoAdvance)
@@ -208,7 +215,7 @@ export function PlayerTable({ board }: { board: Board }) {
             {rows.length === 0 && (
               <tr>
                 <td
-                  colSpan={6 + board.sources.length}
+                  colSpan={6 + rankSources.length}
                   className="px-3 py-8 text-center text-zinc-400"
                 >
                   No players match. Import some rankings to get started.
@@ -251,32 +258,32 @@ function PlayerRow({
 
   return (
     <tr className={`border-t border-zinc-100 dark:border-zinc-800 ${rowClass}`}>
-      <td className="px-3 py-2 font-medium">{player.name}</td>
-      <td className="px-3 py-2 text-zinc-500">{player.position}</td>
-      <td className="px-3 py-2 text-zinc-500">{player.team || "—"}</td>
-      <td className="px-3 py-2 text-zinc-500">{player.bye ?? "—"}</td>
-      <td className="px-3 py-2 font-medium">
+      <td className="px-2 py-1.5 font-medium whitespace-nowrap">{player.name}</td>
+      <td className="px-2 py-1.5 text-zinc-500">{player.position}</td>
+      <td className="px-2 py-1.5 text-zinc-500">{player.team || "—"}</td>
+      <td className="px-2 py-1.5 text-zinc-500">{player.bye ?? "—"}</td>
+      <td className="px-2 py-1.5 font-medium">
         {adp !== null ? adp.toFixed(1) : "—"}
       </td>
-      <td className="px-3 py-2 font-medium">
+      <td className="px-2 py-1.5 font-medium">
         {consensusRank !== null ? consensusRank.toFixed(1) : "—"}
       </td>
       {sources.map((s) => {
         const v = player.values.find((val) => val.sourceId === s.id);
         return (
-          <td key={s.id} className="px-3 py-2 text-zinc-500">
+          <td key={s.id} className="px-2 py-1.5 text-zinc-500">
             {v ? v.value : "—"}
           </td>
         );
       })}
-      <td className="px-3 py-2">
-        <div className="flex gap-1">
+      <td className="px-2 py-1.5">
+        <div className="flex gap-0.5">
           {(Object.keys(TAG_META) as Tag[]).map((t) => (
             <button
               key={t}
               title={TAG_META[t].label}
               onClick={() => onTag(t)}
-              className={`rounded px-1.5 py-0.5 text-xs hover:bg-zinc-100 dark:hover:bg-zinc-800 ${
+              className={`rounded px-1 py-0.5 text-xs hover:bg-zinc-100 dark:hover:bg-zinc-800 ${
                 tag === t ? TAG_META[t].active : ""
               }`}
             >
@@ -285,7 +292,7 @@ function PlayerRow({
           ))}
         </div>
       </td>
-      <td className="px-3 py-2">
+      <td className="px-2 py-1.5">
         <input
           type="checkbox"
           checked={player.drafted}

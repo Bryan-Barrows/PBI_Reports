@@ -20,7 +20,7 @@ export function BoardView({ board }: { board: Board }) {
   >(board.sources.length === 0 ? "new" : null);
 
   return (
-    <div className="mx-auto w-full max-w-6xl flex-1 px-6 py-8">
+    <div className="mx-auto w-full max-w-[1800px] flex-1 px-6 py-8">
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
           <button
