@@ -11,6 +11,7 @@ export function BoardView({ board }: { board: Board }) {
   const setActiveBoard = useAppStore((s) => s.setActiveBoard);
   const setCurrentPick = useAppStore((s) => s.setCurrentPick);
   const resetBoard = useAppStore((s) => s.resetBoard);
+  const clearPlayers = useAppStore((s) => s.clearPlayers);
   const removeSource = useAppStore((s) => s.removeSource);
   const exportBoard = useAppStore((s) => s.exportBoard);
   const renameBoard = useAppStore((s) => s.renameBoard);
@@ -79,6 +80,21 @@ export function BoardView({ board }: { board: Board }) {
             className="rounded-lg border border-zinc-300 px-3 py-2 text-sm hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
           >
             Reset board
+          </button>
+          <button
+            onClick={() => {
+              if (
+                confirm(
+                  `Remove ALL players and rankings sources on "${board.name}"? This can't be undone — you'll re-import everything from scratch. Your Love/Like/Maybe/No tags are kept.`
+                )
+              ) {
+                clearPlayers(board.id);
+                setImportTarget("new");
+              }
+            }}
+            className="rounded-lg border border-red-200 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:border-red-900 dark:hover:bg-red-950"
+          >
+            Clear all rankings
           </button>
           <button
             onClick={() => {

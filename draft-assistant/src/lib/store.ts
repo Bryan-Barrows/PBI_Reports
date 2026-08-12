@@ -27,6 +27,7 @@ interface AppState {
   duplicateBoard: (id: string, newName: string) => string | null;
   renameBoard: (id: string, name: string) => void;
   resetBoard: (id: string) => void;
+  clearPlayers: (id: string) => void;
   updateSettings: (id: string, settings: LeagueSettings) => void;
   setActiveBoard: (id: string | null) => void;
 
@@ -138,6 +139,21 @@ export const useAppStore = create<AppState>()(
                     draftedAtPick: null,
                   })),
                 }
+              : b
+          ),
+        }));
+      },
+
+      // Wipes all players AND sources on a board, plus its pick counter —
+      // for starting a completely fresh merge after fixing up source files
+      // (e.g. cleaned-up names), rather than matching against a pool built
+      // from before the fix. Tags are untouched since they live outside the
+      // board, keyed by player identity.
+      clearPlayers: (id) => {
+        set((state) => ({
+          boards: state.boards.map((b) =>
+            b.id === id
+              ? { ...b, players: [], sources: [], currentPick: 1 }
               : b
           ),
         }));
