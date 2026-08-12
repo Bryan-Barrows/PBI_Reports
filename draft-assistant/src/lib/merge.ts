@@ -1,6 +1,12 @@
 import { v4 as uuid } from "uuid";
 import type { ImportRow, Player } from "./types";
-import { buildMatchKey, findFuzzyMatch, levenshtein, normalizeName } from "./normalize";
+import {
+  buildMatchKey,
+  findFuzzyMatch,
+  FUZZY_NAME_TOLERANCE,
+  levenshtein,
+  normalizeName,
+} from "./normalize";
 
 export interface MergeResult {
   players: Player[];
@@ -64,8 +70,7 @@ export function mergeRowsIntoPlayers(
         for (const p of players) {
           const candNorm = normalizeName(p.name);
           const distance = levenshtein(targetNorm, candNorm);
-          const tolerance = Math.max(1, Math.floor(candNorm.length * 0.2));
-          if (distance <= tolerance && (!best || distance < best.distance)) {
+          if (distance <= FUZZY_NAME_TOLERANCE && (!best || distance < best.distance)) {
             best = { player: p, distance };
           }
         }

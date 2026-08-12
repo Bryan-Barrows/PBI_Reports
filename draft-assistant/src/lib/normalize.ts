@@ -54,8 +54,16 @@ export function levenshtein(a: string, b: string): number {
   return prev[n];
 }
 
+// Fixed (not length-scaled) edit-distance tolerance for fuzzy name matching.
+// Deliberately tight: fantasy football has real, distinct players whose
+// names differ by just 1-2 characters (e.g. "Brian Robinson" vs "Bijan
+// Robinson" — different people, both RBs). A tolerance of 2 merges them; 1
+// still catches genuine typos/formatting slips (a dropped or doubled
+// letter) without conflating two real players.
+export const FUZZY_NAME_TOLERANCE = 1;
+
 // Finds the closest existing normalized name sharing the same position,
-// within a small edit-distance tolerance that scales with name length.
+// within FUZZY_NAME_TOLERANCE edits.
 export function findFuzzyMatch(
   targetName: string,
   targetPosition: string,
@@ -69,8 +77,7 @@ export function findFuzzyMatch(
     const [candNorm, candPos] = candidate.matchKey.split("|");
     if (candPos !== posNorm) continue;
     const distance = levenshtein(targetNorm, candNorm);
-    const tolerance = Math.max(1, Math.floor(candNorm.length * 0.2));
-    if (distance <= tolerance) {
+    if (distance <= FUZZY_NAME_TOLERANCE) {
       if (!best || distance < best.distance) {
         best = { matchKey: candidate.matchKey, distance };
       }
