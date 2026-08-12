@@ -80,7 +80,7 @@ export const useAppStore = create<AppState>()(
           name,
           platform,
           settings: settings ?? defaultSettings(),
-          currentPick: 1,
+          currentPick: 0,
           createdAt: new Date().toISOString(),
           sources: [],
           players: [],
@@ -132,7 +132,7 @@ export const useAppStore = create<AppState>()(
             b.id === id
               ? {
                   ...b,
-                  currentPick: 1,
+                  currentPick: 0,
                   players: b.players.map((p) => ({
                     ...p,
                     drafted: false,
@@ -153,7 +153,7 @@ export const useAppStore = create<AppState>()(
         set((state) => ({
           boards: state.boards.map((b) =>
             b.id === id
-              ? { ...b, players: [], sources: [], currentPick: 1 }
+              ? { ...b, players: [], sources: [], currentPick: 0 }
               : b
           ),
         }));
@@ -273,7 +273,7 @@ export const useAppStore = create<AppState>()(
               ? b.currentPick
               : drafted
               ? b.currentPick + 1
-              : Math.max(1, b.currentPick - 1);
+              : Math.max(0, b.currentPick - 1);
             return {
               ...b,
               currentPick: nextPick,
@@ -282,7 +282,7 @@ export const useAppStore = create<AppState>()(
                   ? {
                       ...p,
                       drafted,
-                      draftedAtPick: drafted ? b.currentPick : null,
+                      draftedAtPick: drafted ? nextPick : null,
                     }
                   : p
               ),
@@ -294,7 +294,7 @@ export const useAppStore = create<AppState>()(
       setCurrentPick: (boardId, pick) => {
         set((state) => ({
           boards: state.boards.map((b) =>
-            b.id === boardId ? { ...b, currentPick: Math.max(1, pick) } : b
+            b.id === boardId ? { ...b, currentPick: Math.max(0, pick) } : b
           ),
         }));
       },
