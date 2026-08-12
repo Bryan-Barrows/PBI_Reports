@@ -267,8 +267,13 @@ export const useAppStore = create<AppState>()(
         set((state) => ({
           boards: state.boards.map((b) => {
             if (b.id !== boardId) return b;
-            const nextPick =
-              drafted && autoAdvancePick ? b.currentPick + 1 : b.currentPick;
+            // Mirror the increment: un-marking a player should give the pick
+            // back, or the counter drifts out of sync with the checkboxes.
+            const nextPick = !autoAdvancePick
+              ? b.currentPick
+              : drafted
+              ? b.currentPick + 1
+              : Math.max(1, b.currentPick - 1);
             return {
               ...b,
               currentPick: nextPick,
