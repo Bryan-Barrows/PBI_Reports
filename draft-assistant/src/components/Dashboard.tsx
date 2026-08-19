@@ -38,6 +38,16 @@ export function Dashboard() {
       scoring,
       superflex,
       dynasty,
+      rosterSlots: {
+        QB: superflex ? 2 : 1,
+        RB: 2,
+        WR: 2,
+        TE: 1,
+        FLEX: 1,
+        K: 1,
+        DST: 1,
+        BENCH: 6,
+      },
     });
     setName("");
     setShowForm(false);

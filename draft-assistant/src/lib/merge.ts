@@ -107,6 +107,7 @@ export function mergeRowsIntoPlayers(
         values: [{ sourceId, value: row.value }],
         drafted: false,
         draftedAtPick: null,
+        draftedByMe: false,
       };
       players.push(newPlayer);
       byMatchKey.set(matchKey, newPlayer);
@@ -115,4 +116,26 @@ export function mergeRowsIntoPlayers(
   }
 
   return { players, added, merged, fuzzyMerged };
+}
+
+// Same exact-then-fuzzy name+position matching mergeRowsIntoPlayers uses,
+// exposed standalone for callers that just need to look a player up (e.g.
+// Sleeper sync matching a pick to an existing board player) without
+// importing a full row.
+export function findPlayerByNamePosition(
+  players: Player[],
+  name: string,
+  position: string
+): Player | undefined {
+  const byMatchKey = new Map(players.map((p) => [p.matchKey, p]));
+  const exactKey = buildMatchKey(name, position);
+  const exact = byMatchKey.get(exactKey);
+  if (exact) return exact;
+
+  const fuzzyKey = findFuzzyMatch(
+    name,
+    position,
+    players.map((p) => ({ matchKey: p.matchKey, name: p.name }))
+  );
+  return fuzzyKey ? byMatchKey.get(fuzzyKey) : undefined;
 }

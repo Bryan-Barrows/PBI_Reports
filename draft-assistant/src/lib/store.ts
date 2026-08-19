@@ -8,10 +8,15 @@ import type {
   LeagueSettings,
   Platform,
   RankingSource,
+  SleeperSyncConfig,
   SourceKind,
   Tag,
 } from "./types";
-import { mergeRowsIntoPlayers, type MergeResult } from "./merge";
+import {
+  findPlayerByNamePosition,
+  mergeRowsIntoPlayers,
+  type MergeResult,
+} from "./merge";
 
 interface AppState {
   boards: Board[];
@@ -51,7 +56,17 @@ interface AppState {
     drafted: boolean,
     autoAdvancePick: boolean
   ) => void;
+  setDraftedByMe: (boardId: string, playerId: string, mine: boolean) => void;
   setCurrentPick: (boardId: string, pick: number) => void;
+
+  updateSleeperSync: (
+    boardId: string,
+    config: Partial<SleeperSyncConfig> | null
+  ) => void;
+  applySleeperPicks: (
+    boardId: string,
+    picks: { name: string; position: string; slot: number; pickNo: number }[]
+  ) => { matched: number; unmatched: number };
 
   exportBoard: (id: string) => string | null;
   importBoardFile: (json: string) => string | null;
@@ -64,6 +79,7 @@ const defaultSettings = (): LeagueSettings => ({
   scoring: "ppr",
   superflex: false,
   dynasty: false,
+  rosterSlots: { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 1, K: 1, DST: 1, BENCH: 6 },
 });
 
 export const useAppStore = create<AppState>()(
@@ -84,6 +100,7 @@ export const useAppStore = create<AppState>()(
           createdAt: new Date().toISOString(),
           sources: [],
           players: [],
+          sleeperSync: null,
         };
         set((state) => ({
           boards: [...state.boards, board],
@@ -115,6 +132,9 @@ export const useAppStore = create<AppState>()(
             values: [...p.values],
           })),
           sources: source.sources.map((s) => ({ ...s })),
+          // Don't carry a live sync into the copy — duplicating shouldn't
+          // silently start pulling picks into a second board.
+          sleeperSync: null,
         };
         set((state) => ({ boards: [...state.boards, copy] }));
         return newId;
@@ -137,6 +157,7 @@ export const useAppStore = create<AppState>()(
                     ...p,
                     drafted: false,
                     draftedAtPick: null,
+                    draftedByMe: false,
                   })),
                 }
               : b
@@ -283,11 +304,29 @@ export const useAppStore = create<AppState>()(
                       ...p,
                       drafted,
                       draftedAtPick: drafted ? nextPick : null,
+                      // Un-drafting clears "mine" too — a player who's back
+                      // on the board was never actually taken by your team.
+                      draftedByMe: drafted ? p.draftedByMe : false,
                     }
                   : p
               ),
             };
           }),
+        }));
+      },
+
+      setDraftedByMe: (boardId, playerId, mine) => {
+        set((state) => ({
+          boards: state.boards.map((b) =>
+            b.id === boardId
+              ? {
+                  ...b,
+                  players: b.players.map((p) =>
+                    p.id === playerId ? { ...p, draftedByMe: mine } : p
+                  ),
+                }
+              : b
+          ),
         }));
       },
 
@@ -297,6 +336,76 @@ export const useAppStore = create<AppState>()(
             b.id === boardId ? { ...b, currentPick: Math.max(0, pick) } : b
           ),
         }));
+      },
+
+      updateSleeperSync: (boardId, config) => {
+        set((state) => ({
+          boards: state.boards.map((b) => {
+            if (b.id !== boardId) return b;
+            if (config === null) return { ...b, sleeperSync: null };
+            return {
+              ...b,
+              sleeperSync: {
+                draftId: b.sleeperSync?.draftId ?? "",
+                username: b.sleeperSync?.username ?? "",
+                mySlot: b.sleeperSync?.mySlot ?? null,
+                enabled: b.sleeperSync?.enabled ?? false,
+                lastSyncedAt: b.sleeperSync?.lastSyncedAt ?? null,
+                lastSyncedPickCount: b.sleeperSync?.lastSyncedPickCount ?? 0,
+                ...config,
+              },
+            };
+          }),
+        }));
+      },
+
+      // Applies a live Sleeper draft's picks (already-happened picks, in
+      // pick order) onto the board: matches each pick to an existing player
+      // by name+position, marks it drafted (and "mine" if the pick's slot
+      // matches your configured slot), and advances currentPick to the true
+      // pick count — safe to call repeatedly on every poll since already-
+      // drafted players are left alone.
+      applySleeperPicks: (boardId, picks) => {
+        const board = get().boards.find((b) => b.id === boardId);
+        if (!board) return { matched: 0, unmatched: 0 };
+
+        const mySlot = board.sleeperSync?.mySlot ?? null;
+        const players = board.players.map((p) => ({ ...p }));
+        let matched = 0;
+        let unmatched = 0;
+
+        for (const pick of picks) {
+          const target = findPlayerByNamePosition(players, pick.name, pick.position);
+          if (target && !target.drafted) {
+            target.drafted = true;
+            target.draftedByMe = mySlot !== null && pick.slot === mySlot;
+            target.draftedAtPick = pick.pickNo;
+            matched++;
+          } else if (!target) {
+            unmatched++;
+          }
+        }
+
+        set((state) => ({
+          boards: state.boards.map((b) =>
+            b.id === boardId
+              ? {
+                  ...b,
+                  players,
+                  currentPick: Math.max(b.currentPick, picks.length),
+                  sleeperSync: b.sleeperSync
+                    ? {
+                        ...b.sleeperSync,
+                        lastSyncedAt: new Date().toISOString(),
+                        lastSyncedPickCount: picks.length,
+                      }
+                    : b.sleeperSync,
+                }
+              : b
+          ),
+        }));
+
+        return { matched, unmatched };
       },
 
       exportBoard: (id) => {
@@ -331,6 +440,26 @@ export const useAppStore = create<AppState>()(
       name: "ff-draft-assistant-storage",
       storage: createJSONStorage(() => localStorage),
       skipHydration: true,
+      // Backfills fields added after a user's board was first saved (My
+      // Team / Sleeper sync additions), so existing boards from earlier
+      // versions of the app don't crash on load with missing data.
+      merge: (persisted, current) => {
+        const state = persisted as Partial<AppState> | undefined;
+        if (!state?.boards) return { ...current, ...state };
+        const boards = state.boards.map((b) => ({
+          ...b,
+          sleeperSync: b.sleeperSync ?? null,
+          settings: {
+            ...b.settings,
+            rosterSlots: b.settings?.rosterSlots ?? defaultSettings().rosterSlots,
+          },
+          players: (b.players ?? []).map((p) => ({
+            ...p,
+            draftedByMe: p.draftedByMe ?? false,
+          })),
+        }));
+        return { ...current, ...state, boards };
+      },
     }
   )
 );

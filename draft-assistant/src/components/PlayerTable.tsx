@@ -40,16 +40,24 @@ const TAG_META: Record<
 
 type SortKey = "consensus" | "adp" | "name";
 
-export function PlayerTable({ board }: { board: Board }) {
+export function PlayerTable({
+  board,
+  autoAdvance,
+  onAutoAdvanceChange,
+}: {
+  board: Board;
+  autoAdvance: boolean;
+  onAutoAdvanceChange: (value: boolean) => void;
+}) {
   const globalTags = useAppStore((s) => s.globalTags);
   const setTag = useAppStore((s) => s.setTag);
   const setDrafted = useAppStore((s) => s.setDrafted);
+  const setDraftedByMe = useAppStore((s) => s.setDraftedByMe);
 
   const [search, setSearch] = useState("");
   const [position, setPosition] = useState<string>("ALL");
   const [tagFilter, setTagFilter] = useState<string>("ALL");
   const [hideDrafted, setHideDrafted] = useState(false);
-  const [autoAdvance, setAutoAdvance] = useState(true);
   const [sortKey, setSortKey] = useState<SortKey>("consensus");
   const [requireAllRankSources, setRequireAllRankSources] = useState(true);
 
@@ -186,7 +194,7 @@ export function PlayerTable({ board }: { board: Board }) {
           <input
             type="checkbox"
             checked={autoAdvance}
-            onChange={(e) => setAutoAdvance(e.target.checked)}
+            onChange={(e) => onAutoAdvanceChange(e.target.checked)}
           />
           Auto-advance pick on draft
         </label>
@@ -235,6 +243,7 @@ export function PlayerTable({ board }: { board: Board }) {
                 onDraft={(drafted) =>
                   setDrafted(board.id, player.id, drafted, autoAdvance)
                 }
+                onSetMine={(mine) => setDraftedByMe(board.id, player.id, mine)}
               />
             ))}
             {rows.length === 0 && (
@@ -263,6 +272,7 @@ function PlayerRow({
   sources,
   onTag,
   onDraft,
+  onSetMine,
 }: {
   player: Player;
   consensusRank: number | null;
@@ -272,6 +282,7 @@ function PlayerRow({
   sources: Board["sources"];
   onTag: (t: Tag) => void;
   onDraft: (drafted: boolean) => void;
+  onSetMine: (mine: boolean) => void;
 }) {
   const bgClass = player.drafted
     ? "opacity-40 line-through"
@@ -326,11 +337,26 @@ function PlayerRow({
         </div>
       </td>
       <td className="px-2 py-1.5">
-        <input
-          type="checkbox"
-          checked={player.drafted}
-          onChange={(e) => onDraft(e.target.checked)}
-        />
+        <div className="flex items-center gap-1">
+          <input
+            type="checkbox"
+            checked={player.drafted}
+            onChange={(e) => onDraft(e.target.checked)}
+          />
+          {player.drafted && (
+            <button
+              onClick={() => onSetMine(!player.draftedByMe)}
+              title={player.draftedByMe ? "Drafted by me — click to unmark" : "Mark as my pick"}
+              className={`text-xs ${
+                player.draftedByMe
+                  ? "text-amber-500"
+                  : "text-zinc-300 hover:text-amber-400 dark:text-zinc-600"
+              }`}
+            >
+              ⭐
+            </button>
+          )}
+        </div>
       </td>
     </tr>
   );

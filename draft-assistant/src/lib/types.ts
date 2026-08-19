@@ -15,11 +15,45 @@ export type Scoring = "ppr" | "half-ppr" | "standard";
 
 export type SourceKind = "rank" | "adp";
 
+// Roster slot targets used by the "My Team" panel to show what you still
+// need. FLEX is filled by RB/WR/TE surplus beyond their own slot counts.
+export interface RosterSlots {
+  QB: number;
+  RB: number;
+  WR: number;
+  TE: number;
+  FLEX: number;
+  K: number;
+  DST: number;
+  BENCH: number;
+}
+
+export const DEFAULT_ROSTER_SLOTS: RosterSlots = {
+  QB: 1,
+  RB: 2,
+  WR: 2,
+  TE: 1,
+  FLEX: 1,
+  K: 1,
+  DST: 1,
+  BENCH: 6,
+};
+
 export interface LeagueSettings {
   teams: number;
   scoring: Scoring;
   superflex: boolean;
   dynasty: boolean;
+  rosterSlots: RosterSlots;
+}
+
+export interface SleeperSyncConfig {
+  draftId: string;
+  username: string;
+  mySlot: number | null;
+  enabled: boolean;
+  lastSyncedAt: string | null;
+  lastSyncedPickCount: number;
 }
 
 export interface RankingSource {
@@ -45,6 +79,7 @@ export interface Player {
   values: PlayerValue[];
   drafted: boolean;
   draftedAtPick: number | null;
+  draftedByMe: boolean;
 }
 
 export interface Board {
@@ -56,6 +91,7 @@ export interface Board {
   createdAt: string;
   sources: RankingSource[];
   players: Player[];
+  sleeperSync: SleeperSyncConfig | null;
 }
 
 export type GlobalTags = Record<string, Tag>; // matchKey -> tag

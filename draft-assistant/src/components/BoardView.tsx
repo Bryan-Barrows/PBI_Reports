@@ -5,6 +5,9 @@ import { useAppStore } from "@/lib/store";
 import type { Board, RankingSource } from "@/lib/types";
 import { ImportPanel } from "./ImportPanel";
 import { PlayerTable } from "./PlayerTable";
+import { MyTeamPanel } from "./MyTeamPanel";
+import { RecentPicksPanel } from "./RecentPicksPanel";
+import { SleeperSyncPanel } from "./SleeperSyncPanel";
 import { downloadTextFile } from "@/lib/download";
 
 export function BoardView({ board }: { board: Board }) {
@@ -19,6 +22,7 @@ export function BoardView({ board }: { board: Board }) {
   const [importTarget, setImportTarget] = useState<
     "new" | RankingSource | null
   >(board.sources.length === 0 ? "new" : null);
+  const [autoAdvance, setAutoAdvance] = useState(true);
 
   return (
     <div className="mx-auto w-full max-w-[1800px] flex-1 px-6 py-8">
@@ -154,7 +158,15 @@ export function BoardView({ board }: { board: Board }) {
         />
       )}
 
-      <PlayerTable board={board} />
+      <MyTeamPanel board={board} />
+      <RecentPicksPanel board={board} autoAdvance={autoAdvance} />
+      {board.platform === "sleeper" && <SleeperSyncPanel board={board} />}
+
+      <PlayerTable
+        board={board}
+        autoAdvance={autoAdvance}
+        onAutoAdvanceChange={setAutoAdvance}
+      />
     </div>
   );
 }
