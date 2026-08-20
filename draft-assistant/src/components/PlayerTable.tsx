@@ -55,7 +55,7 @@ export function PlayerTable({
   const setDraftedByMe = useAppStore((s) => s.setDraftedByMe);
 
   const [search, setSearch] = useState("");
-  const [position, setPosition] = useState<string>("ALL");
+  const [positions, setPositions] = useState<string[]>([]); // empty = all
   const [tagFilter, setTagFilter] = useState<string>("ALL");
   const [hideDrafted, setHideDrafted] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>("consensus");
@@ -85,8 +85,8 @@ export function PlayerTable({
       const q = search.trim().toLowerCase();
       list = list.filter((r) => r.player.name.toLowerCase().includes(q));
     }
-    if (position !== "ALL") {
-      list = list.filter((r) => r.player.position === position);
+    if (positions.length > 0) {
+      list = list.filter((r) => positions.includes(r.player.position));
     }
     if (tagFilter !== "ALL") {
       list = list.filter((r) =>
@@ -121,7 +121,7 @@ export function PlayerTable({
     board,
     globalTags,
     search,
-    position,
+    positions,
     tagFilter,
     hideDrafted,
     sortKey,
@@ -138,18 +138,38 @@ export function PlayerTable({
           placeholder="Search player…"
           className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
         />
-        <select
-          value={position}
-          onChange={(e) => setPosition(e.target.value)}
-          className="rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-        >
-          <option value="ALL">All positions</option>
-          {POSITIONS.map((p) => (
-            <option key={p} value={p}>
-              {p}
-            </option>
-          ))}
-        </select>
+        <div className="flex items-center gap-1 rounded-md border border-zinc-300 px-1.5 py-1 dark:border-zinc-700">
+          <button
+            onClick={() => setPositions([])}
+            className={`rounded px-1.5 py-0.5 text-xs ${
+              positions.length === 0
+                ? "bg-zinc-900 text-white dark:bg-white dark:text-zinc-900"
+                : "text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+            }`}
+          >
+            All
+          </button>
+          {POSITIONS.map((p) => {
+            const active = positions.includes(p);
+            return (
+              <button
+                key={p}
+                onClick={() =>
+                  setPositions((prev) =>
+                    active ? prev.filter((x) => x !== p) : [...prev, p]
+                  )
+                }
+                className={`rounded px-1.5 py-0.5 text-xs ${
+                  active
+                    ? "bg-zinc-900 text-white dark:bg-white dark:text-zinc-900"
+                    : "text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                }`}
+              >
+                {p}
+              </button>
+            );
+          })}
+        </div>
         <select
           value={tagFilter}
           onChange={(e) => setTagFilter(e.target.value)}
