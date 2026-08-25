@@ -7,6 +7,15 @@ import { DEFAULT_ROSTER_SLOTS } from "@/lib/types";
 
 const BASE_POSITIONS = ["QB", "RB", "WR", "TE", "K", "DST"] as const;
 
+const POSITION_COLOR: Record<string, string> = {
+  QB: "text-blue-600 dark:text-blue-400",
+  RB: "text-emerald-600 dark:text-emerald-400",
+  WR: "text-purple-600 dark:text-purple-400",
+  TE: "text-orange-600 dark:text-orange-400",
+  K: "text-zinc-500 dark:text-zinc-400",
+  DST: "text-slate-600 dark:text-slate-400",
+};
+
 function Pill({
   label,
   have,
@@ -116,7 +125,12 @@ export function MyTeamPanel({ board }: { board: Board }) {
                   key={p.id}
                   className="rounded-md bg-zinc-100 px-2 py-1 dark:bg-zinc-800"
                 >
-                  <span className="text-zinc-500">{p.position}</span> {p.name}
+                  <span
+                    className={`font-medium ${POSITION_COLOR[p.position] ?? "text-zinc-500"}`}
+                  >
+                    {p.position}
+                  </span>{" "}
+                  <span className={POSITION_COLOR[p.position] ?? ""}>{p.name}</span>
                 </li>
               ))}
             </ul>
