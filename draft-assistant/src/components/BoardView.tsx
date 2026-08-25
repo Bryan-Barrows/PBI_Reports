@@ -152,7 +152,7 @@ export function BoardView({ board }: { board: Board }) {
 
       {importTarget && (
         <ImportPanel
-          boardId={board.id}
+          board={board}
           existingSource={importTarget === "new" ? undefined : importTarget}
           onClose={() => setImportTarget(null)}
         />

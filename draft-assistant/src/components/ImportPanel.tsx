@@ -4,7 +4,8 @@ import { useRef, useState } from "react";
 import { useAppStore } from "@/lib/store";
 import { applyMapping, guessMapping, parseTable } from "@/lib/csv";
 import { readFileAsText } from "@/lib/download";
-import type { RankingSource, SourceKind } from "@/lib/types";
+import { fantasyProsPlayersToRows, fetchFantasyProsRankings } from "@/lib/fantasypros";
+import type { Board, RankingSource, SourceKind } from "@/lib/types";
 
 interface IdentityMapping {
   name: number | null;
@@ -46,14 +47,15 @@ function randomId() {
 }
 
 export function ImportPanel({
-  boardId,
+  board,
   existingSource,
   onClose,
 }: {
-  boardId: string;
+  board: Board;
   existingSource?: RankingSource;
   onClose: () => void;
 }) {
+  const boardId = board.id;
   const importSource = useAppStore((s) => s.importSource);
   const updateSource = useAppStore((s) => s.updateSource);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -70,6 +72,8 @@ export function ImportPanel({
   const [updateValueColumn, setUpdateValueColumn] = useState<number | null>(null);
   const [sourceColumns, setSourceColumns] = useState<SourceColumn[]>([]);
   const [results, setResults] = useState<SourceResult[] | null>(null);
+  const [fpLoading, setFpLoading] = useState(false);
+  const [fpError, setFpError] = useState<string | null>(null);
 
   function parse(text: string) {
     setRawText(text);
@@ -98,6 +102,35 @@ export function ImportPanel({
     const text = await readFileAsText(file);
     parse(text);
     e.target.value = "";
+  }
+
+  // Fetches FantasyPros' consensus overall board directly, skipping the
+  // paste/mapping step entirely since we already know the schema. Note:
+  // this only covers rankings — FantasyPros' free API tier doesn't include
+  // ADP, so that stays a manual paste.
+  async function handleFetchFantasyPros() {
+    setFpLoading(true);
+    setFpError(null);
+    try {
+      const data = await fetchFantasyProsRankings(board.settings.scoring);
+      const rows = fantasyProsPlayersToRows(data.players);
+      if (isUpdate && existingSource) {
+        const res = updateSource(boardId, existingSource.id, rows);
+        setResults([
+          { label: existingSource.name, added: res.added, merged: res.merged, fuzzyMerged: res.fuzzyMerged },
+        ]);
+      } else {
+        const label = "FantasyPros Overall";
+        const res = importSource(boardId, label, "rank", rows);
+        setResults([{ label, added: res.added, merged: res.merged, fuzzyMerged: res.fuzzyMerged }]);
+      }
+    } catch (err) {
+      setFpError(
+        err instanceof Error ? err.message : "Couldn't fetch FantasyPros rankings."
+      );
+    } finally {
+      setFpLoading(false);
+    }
   }
 
   function resetToStart() {
@@ -248,7 +281,21 @@ export function ImportPanel({
               className="hidden"
               onChange={handleFile}
             />
+            <span className="text-zinc-400">or</span>
+            <button
+              onClick={handleFetchFantasyPros}
+              disabled={fpLoading}
+              className="rounded-md border border-zinc-300 px-3 py-1.5 hover:bg-zinc-50 disabled:opacity-40 dark:border-zinc-700 dark:hover:bg-zinc-900"
+              title={
+                isUpdate
+                  ? "Refresh this source with FantasyPros' current overall rankings"
+                  : "Import FantasyPros' combined overall rankings (QB/RB/WR/TE) directly — not ADP, that stays manual"
+              }
+            >
+              {fpLoading ? "Fetching…" : "Fetch from FantasyPros"}
+            </button>
           </div>
+          {fpError && <p className="text-xs text-red-600">{fpError}</p>}
         </div>
       ) : (
         <div className="flex flex-col gap-4">
