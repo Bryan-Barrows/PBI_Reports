@@ -38,7 +38,11 @@ const TAG_META: Record<
   },
 };
 
-type SortKey = "consensus" | "adp" | "name";
+// "consensus" | "adp" | "name" | "source:<sourceId>" — the source form lets
+// any individual ranking column (not just the computed Consensus/ADP ones)
+// be sorted on, via its column header or the dropdown.
+type SortKey = string;
+type SortDir = "asc" | "desc";
 
 export function PlayerTable({
   board,
@@ -59,7 +63,19 @@ export function PlayerTable({
   const [tagFilter, setTagFilter] = useState<string>("ALL");
   const [hideDrafted, setHideDrafted] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>("consensus");
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [requireAllRankSources, setRequireAllRankSources] = useState(true);
+
+  // Clicking a header (or picking it from the dropdown) sorts by that
+  // column; clicking the same one again flips direction.
+  function handleSort(key: SortKey) {
+    if (key === sortKey) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  }
 
   // Only rank-type sources get their own column — an ADP-type source's
   // values already surface in the dedicated ADP summary column, so showing
@@ -105,15 +121,27 @@ export function PlayerTable({
       );
     }
 
+    const dirMult = sortDir === "asc" ? 1 : -1;
+    const sourceId = sortKey.startsWith("source:") ? sortKey.slice(7) : null;
+
     list.sort((a, b) => {
-      if (sortKey === "name") return a.player.name.localeCompare(b.player.name);
-      const key = sortKey === "adp" ? "adp" : "consensusRank";
-      const av = a[key];
-      const bv = b[key];
+      if (sortKey === "name") {
+        return dirMult * a.player.name.localeCompare(b.player.name);
+      }
+      let av: number | null;
+      let bv: number | null;
+      if (sourceId) {
+        av = a.player.values.find((v) => v.sourceId === sourceId)?.value ?? null;
+        bv = b.player.values.find((v) => v.sourceId === sourceId)?.value ?? null;
+      } else {
+        const key = sortKey === "adp" ? "adp" : "consensusRank";
+        av = a[key];
+        bv = b[key];
+      }
       if (av === null && bv === null) return 0;
       if (av === null) return 1;
       if (bv === null) return -1;
-      return av - bv;
+      return dirMult * (av - bv);
     });
 
     return list;
@@ -125,6 +153,7 @@ export function PlayerTable({
     tagFilter,
     hideDrafted,
     sortKey,
+    sortDir,
     requireAllRankSources,
     rankSourceIds,
   ]);
@@ -184,11 +213,16 @@ export function PlayerTable({
         </select>
         <select
           value={sortKey}
-          onChange={(e) => setSortKey(e.target.value as SortKey)}
+          onChange={(e) => handleSort(e.target.value)}
           className="rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
         >
-          <option value="consensus">Sort: Consensus rank</option>
           <option value="adp">Sort: ADP</option>
+          <option value="consensus">Sort: Consensus rank</option>
+          {rankSources.map((s) => (
+            <option key={s.id} value={`source:${s.id}`}>
+              Sort: {s.name}
+            </option>
+          ))}
           <option value="name">Sort: Name</option>
         </select>
         <label className="flex items-center gap-1.5 text-sm text-zinc-600 dark:text-zinc-400">
@@ -234,16 +268,21 @@ export function PlayerTable({
         <table className="w-full text-sm">
           <thead className="bg-zinc-50 text-left text-xs uppercase tracking-wide text-zinc-500 dark:bg-zinc-900">
             <tr>
-              <th className="px-2 py-1.5">Player</th>
+              <SortableHeader label="Player" sortKeyValue="name" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
               <th className="px-2 py-1.5">Pos</th>
               <th className="px-2 py-1.5">Team</th>
               <th className="px-2 py-1.5">Bye</th>
-              <th className="px-2 py-1.5">ADP</th>
-              <th className="px-2 py-1.5">Consensus</th>
+              <SortableHeader label="ADP" sortKeyValue="adp" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+              <SortableHeader label="Consensus" sortKeyValue="consensus" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
               {rankSources.map((s) => (
-                <th key={s.id} className="px-2 py-1.5 whitespace-nowrap">
-                  {s.name}
-                </th>
+                <SortableHeader
+                  key={s.id}
+                  label={s.name}
+                  sortKeyValue={`source:${s.id}`}
+                  sortKey={sortKey}
+                  sortDir={sortDir}
+                  onSort={handleSort}
+                />
               ))}
               <th className="px-2 py-1.5">Tag</th>
               <th className="px-2 py-1.5">Drafted</th>
@@ -280,6 +319,38 @@ export function PlayerTable({
         </table>
       </div>
     </div>
+  );
+}
+
+function SortableHeader({
+  label,
+  sortKeyValue,
+  sortKey,
+  sortDir,
+  onSort,
+}: {
+  label: string;
+  sortKeyValue: string;
+  sortKey: string;
+  sortDir: "asc" | "desc";
+  onSort: (key: string) => void;
+}) {
+  const active = sortKey === sortKeyValue;
+  return (
+    <th className="px-2 py-1.5 whitespace-nowrap">
+      <button
+        onClick={() => onSort(sortKeyValue)}
+        className={`flex items-center gap-1 hover:text-zinc-900 dark:hover:text-zinc-100 ${
+          active ? "text-zinc-900 dark:text-zinc-100" : ""
+        }`}
+        title={`Sort by ${label}`}
+      >
+        {label}
+        <span className="text-[10px] text-zinc-400">
+          {active ? (sortDir === "asc" ? "▲" : "▼") : ""}
+        </span>
+      </button>
+    </th>
   );
 }
 
