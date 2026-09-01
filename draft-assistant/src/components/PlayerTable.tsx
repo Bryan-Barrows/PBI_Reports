@@ -258,7 +258,7 @@ export function PlayerTable({
             passed this pick
           </span>
           <span className="flex items-center gap-1">
-            <span className="h-3 w-3 rounded bg-amber-100 dark:bg-amber-950" /> ADP
+            <span className="h-3 w-3 rounded bg-yellow-200 dark:bg-yellow-500/70" /> ADP
             within next 10
           </span>
         </span>
@@ -380,7 +380,7 @@ function PlayerRow({
     : proximity === "hot"
     ? "bg-rose-50 dark:bg-rose-950/40"
     : proximity === "warm"
-    ? "bg-amber-50 dark:bg-amber-950/30"
+    ? "bg-yellow-100 dark:bg-yellow-500/20"
     : "";
   // Left-edge stripe is a border, independent of the background above, so a
   // tagged player stays identifiable even on a red/yellow ADP-highlighted row.
